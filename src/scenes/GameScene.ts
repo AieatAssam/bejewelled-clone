@@ -392,28 +392,159 @@ export class GameScene implements Scene {
   }
 
   private async processCascade(): Promise<void> {
-    const result = this.controller.processCascade();
+    await this.processCascadeStep(1);
+  }
 
-    for (const gem of result.collectedGems) {
-      this.gemMeshManager.removeGem(gem.id);
+  private async processCascadeStep(cascadeLevel: number): Promise<void> {
+    const matchFinder = this.controller.getMatchFinder();
+    const matches = matchFinder.findAllMatches(this.board);
+
+    if (matches.length === 0) {
+      return;
     }
 
-    for (const gem of this.board.getAllGems()) {
-      this.gemMeshManager.updateGemPosition(gem.id, gem.position.row, gem.position.col);
+    // Show cascade level if > 1
+    if (cascadeLevel > 1) {
+      this.showCascadeText(cascadeLevel);
     }
 
-    for (const gem of this.board.getAllGems()) {
-      if (!this.gemMeshManager.getMesh(gem.id)) {
-        this.gemMeshManager.spawnGemFromTop(gem);
+    // Collect gem IDs that will be removed
+    const gemIdsToRemove: string[] = [];
+    const matchedGemTypes: GemType[] = [];
+    for (const match of matches) {
+      for (const gem of match.gems) {
+        const boardGem = this.board.getGem(gem.position.row, gem.position.col);
+        if (boardGem && !gemIdsToRemove.includes(boardGem.id)) {
+          gemIdsToRemove.push(boardGem.id);
+          matchedGemTypes.push(boardGem.type);
+        }
       }
     }
 
-    await this.waitForAnimation();
+    // Step 1: Highlight matched gems (player can see what's matching)
+    this.gemMeshManager.highlightMatched(gemIdsToRemove);
+    await this.delay(400); // Let player see highlighted gems
 
-    const newMatches = this.controller.getMatchFinder().findAllMatches(this.board);
-    if (newMatches.length > 0) {
-      await this.processCascade();
+    // Step 2: Emit particles and animate removal
+    for (const match of matches) {
+      for (const gem of match.gems) {
+        const pos = this.gemMeshManager.getFactory().boardToWorld(gem.position.row, gem.position.col);
+        const colors = GEM_COLORS[gem.type as keyof typeof GEM_COLORS];
+        this.particleSystem.emitCollect(pos, new THREE.Color(colors.glow));
+      }
     }
+
+    await this.gemMeshManager.animateRemoval(gemIdsToRemove);
+
+    // Step 3: Actually remove gems from board and mesh manager
+    for (const match of matches) {
+      for (const gem of match.gems) {
+        const boardGem = this.board.getGem(gem.position.row, gem.position.col);
+        if (boardGem) {
+          this.dragonEvent.addToCollection(boardGem.type);
+          this.board.removeGem(gem.position.row, gem.position.col);
+          this.gemMeshManager.removeGem(boardGem.id);
+        }
+      }
+    }
+
+    // Calculate score for this cascade level
+    const cascadeScore = this.calculateCascadeScore(matches, cascadeLevel);
+    this.scoreDisplay.addScore(cascadeScore);
+
+    // Track small chains for dragon event
+    this.trackSmallChains(matches);
+
+    // Step 4: Apply gravity
+    this.applyGravity();
+
+    // Step 5: Fill empty spaces
+    this.fillEmptySpaces();
+
+    await this.waitForAnimation();
+    await this.delay(150); // Small pause before checking for new matches
+
+    // Step 6: Check for new cascades
+    await this.processCascadeStep(cascadeLevel + 1);
+  }
+
+  private showCascadeText(level: number): void {
+    const text = document.createElement('div');
+    text.className = 'cascade-text';
+    text.textContent = `${level}x Cascade!`;
+    this.uiManager.getOverlay().appendChild(text);
+
+    setTimeout(() => {
+      text.classList.add('fade-out');
+      setTimeout(() => text.remove(), 500);
+    }, 1000);
+  }
+
+  private calculateCascadeScore(matches: { length: number }[], cascadeLevel: number): number {
+    let baseScore = 0;
+    for (const match of matches) {
+      if (match.length === 3) {
+        baseScore += 50;
+      } else if (match.length === 4) {
+        baseScore += 150;
+      } else if (match.length >= 5) {
+        baseScore += 500;
+      }
+    }
+    return baseScore * cascadeLevel;
+  }
+
+  private trackSmallChains(matches: { length: number }[]): void {
+    const hasOnlySmallMatches = matches.every(m => m.length === 3);
+    if (hasOnlySmallMatches && matches.length === 1) {
+      const chains = this.controller.getConsecutiveSmallChains() + 1;
+      this.controller.setConsecutiveSmallChains(chains);
+      if (chains >= 3) {
+        eventBus.emit('dragonEvent');
+        this.controller.setConsecutiveSmallChains(0);
+      }
+    } else {
+      this.controller.setConsecutiveSmallChains(0);
+    }
+  }
+
+  private applyGravity(): void {
+    for (let col = 0; col < 8; col++) {
+      let writeRow = 7;
+      for (let row = 7; row >= 0; row--) {
+        const gem = this.board.getGem(row, col);
+        if (gem) {
+          if (row !== writeRow) {
+            this.board.setGem(writeRow, col, gem);
+            this.board.setGem(row, col, null);
+            gem.position = { row: writeRow, col };
+            this.gemMeshManager.updateGemPosition(gem.id, writeRow, col);
+          }
+          writeRow--;
+        }
+      }
+    }
+  }
+
+  private fillEmptySpaces(): void {
+    for (let col = 0; col < 8; col++) {
+      for (let row = 0; row < 8; row++) {
+        if (!this.board.getGem(row, col)) {
+          const gem = createGem(this.getRandomGemType(), { row, col });
+          this.board.setGem(row, col, gem);
+          this.gemMeshManager.spawnGemFromTop(gem);
+        }
+      }
+    }
+  }
+
+  private getRandomGemType(): GemType {
+    const types = Object.values(GemType);
+    return types[Math.floor(Math.random() * types.length)];
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   private syncMeshPositions(): void {

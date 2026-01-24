@@ -139,6 +139,32 @@
       100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
     }
 
+    /* Cascade text */
+    .cascade-text {
+      position: absolute;
+      top: 45%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 2.5rem;
+      color: #44ff88;
+      text-shadow: 0 0 20px #44ff88, 0 0 40px #22cc66;
+      animation: cascadePopIn 0.4s ease-out;
+      pointer-events: none;
+      z-index: 50;
+    }
+
+    @keyframes cascadePopIn {
+      0% { transform: translate(-50%, -50%) scale(0.3) rotate(-10deg); opacity: 0; }
+      50% { transform: translate(-50%, -50%) scale(1.3) rotate(5deg); }
+      100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; }
+    }
+
+    .cascade-text.fade-out {
+      opacity: 0;
+      transition: opacity 0.5s ease-out;
+    }
+
     /* Game frame decoration */
     .game-frame {
       position: absolute;

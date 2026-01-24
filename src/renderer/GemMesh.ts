@@ -395,6 +395,65 @@ export class GemMeshManager {
     }
   }
 
+  // Highlight matched gems before they are removed - makes them glow and pulse
+  highlightMatched(gemIds: string[]): void {
+    for (const gemId of gemIds) {
+      const meshData = this.meshes.get(gemId);
+      if (!meshData) continue;
+
+      const gemMesh = meshData.mesh.getObjectByName('gem') as THREE.Mesh;
+      if (gemMesh) {
+        // Make it glow brightly
+        const material = gemMesh.material as THREE.MeshStandardMaterial;
+        material.emissiveIntensity = 1.0;
+
+        // Scale up for emphasis
+        gemMesh.scale.setScalar(1.3);
+      }
+    }
+  }
+
+  // Animate matched gems disappearing with a shrink effect
+  async animateRemoval(gemIds: string[]): Promise<void> {
+    const meshesToAnimate: GemMeshData[] = [];
+
+    for (const gemId of gemIds) {
+      const meshData = this.meshes.get(gemId);
+      if (meshData) {
+        meshesToAnimate.push(meshData);
+      }
+    }
+
+    // Animate shrink and fade
+    return new Promise((resolve) => {
+      const startTime = Date.now();
+      const duration = 200; // ms
+
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+
+        for (const meshData of meshesToAnimate) {
+          const gemMesh = meshData.mesh.getObjectByName('gem') as THREE.Mesh;
+          if (gemMesh) {
+            const scale = 1.3 * (1 - progress);
+            gemMesh.scale.setScalar(scale);
+            (gemMesh.material as THREE.MeshStandardMaterial).opacity = 1 - progress;
+            (gemMesh.material as THREE.MeshStandardMaterial).transparent = true;
+          }
+        }
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          resolve();
+        }
+      };
+
+      animate();
+    });
+  }
+
   clear(): void {
     this.meshes.forEach((meshData) => {
       this.scene.remove(meshData.mesh);
