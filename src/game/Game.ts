@@ -60,6 +60,10 @@ export class Game {
       if (newState === 'menu' || newState === 'intro') {
         this.gameScene.resetGame();
       }
+      // Update pause scene with current dragon event from game scene
+      if (newState === 'pause') {
+        this.pauseScene.updateDragonEvent(this.gameScene.getDragonEvent());
+      }
       this.gameState.setState(newState);
     });
 

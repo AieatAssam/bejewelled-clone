@@ -459,8 +459,8 @@ export class GameScene implements Scene {
     const gemsCollected = gemIdsToRemove.length;
     this.scoreDisplay.addScore(gemsCollected);
 
-    // Track small chains for dragon event
-    this.trackSmallChains(matches);
+    // Track small chains for dragon event (cascades reduce threat)
+    this.trackSmallChains(matches, cascadeLevel);
 
     // Step 4: Apply gravity
     this.applyGravity();
@@ -501,18 +501,25 @@ export class GameScene implements Scene {
     return baseScore * cascadeLevel;
   }
 
-  private trackSmallChains(matches: { length: number }[]): void {
+  private trackSmallChains(matches: { length: number }[], cascadeLevel: number): void {
     const hasOnlySmallMatches = matches.every(m => m.length === 3);
-    if (hasOnlySmallMatches && matches.length === 1) {
+    const hasBigMatch = matches.some(m => m.length >= 4);
+
+    if (hasBigMatch || cascadeLevel > 1) {
+      // Big matches (4+) or cascades REDUCE threat
+      const reduction = cascadeLevel > 1 ? cascadeLevel : 1;
+      const current = this.controller.getConsecutiveSmallChains();
+      this.controller.setConsecutiveSmallChains(Math.max(0, current - reduction));
+    } else if (hasOnlySmallMatches && matches.length === 1) {
+      // Only single small matches (exactly 3) INCREASE threat
       const chains = this.controller.getConsecutiveSmallChains() + 1;
       this.controller.setConsecutiveSmallChains(chains);
       if (chains >= 3) {
         eventBus.emit('dragonEvent');
         this.controller.setConsecutiveSmallChains(0);
       }
-    } else {
-      this.controller.setConsecutiveSmallChains(0);
     }
+    // Multiple small matches in same cascade don't increase threat (they show skill)
   }
 
   private applyGravity(): void {
