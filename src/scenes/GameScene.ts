@@ -61,6 +61,7 @@ export class GameScene implements Scene {
 
     this.scoreDisplay = new ScoreDisplay();
     this.dragonEvent = new DragonEvent();
+    this.scoreDisplay.setDragonEvent(this.dragonEvent);
 
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();

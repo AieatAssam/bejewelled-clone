@@ -1,25 +1,15 @@
 import { eventBus } from '../utils/EventBus';
 import { GemType, GEM_COLORS } from '../puzzle/Gem';
-
-// Map gem types to their icon representations
-const GEM_ICONS: Record<GemType, string> = {
-  [GemType.Ruby]: '💎',
-  [GemType.Sapphire]: '💠',
-  [GemType.Emerald]: '💚',
-  [GemType.Diamond]: '💎',
-  [GemType.Amethyst]: '🔮',
-  [GemType.GoldBracelet]: '💍',
-  [GemType.PearlEarring]: '⚪',
-};
+import { DragonEvent } from '../puzzle/DragonEvent';
 
 export class ScoreDisplay {
   private container: HTMLElement;
   private scoreValueElement: HTMLElement;
   private comboElement: HTMLElement;
-  private currentScore: number = 0;
   private displayedScore: number = 0;
   private comboTimeout: number | null = null;
   private purseDecoGems: HTMLElement[] = [];
+  private dragonEvent: DragonEvent | null = null;
 
   constructor() {
     this.container = this.createPurseDisplay();
@@ -27,6 +17,11 @@ export class ScoreDisplay {
     this.comboElement = this.createComboDisplay();
     this.setupEventListeners();
     this.cachePurseGems();
+  }
+
+  // Set the dragon event reference to get accurate gem counts
+  setDragonEvent(dragonEvent: DragonEvent): void {
+    this.dragonEvent = dragonEvent;
   }
 
   private cachePurseGems(): void {
@@ -188,15 +183,18 @@ export class ScoreDisplay {
   }
 
   setScore(score: number): void {
-    this.currentScore = score;
+    // Score is now derived from dragonEvent collection
+    // This method kept for compatibility but displayedScore handles animation
+    this.displayedScore = score;
   }
 
-  addScore(points: number): void {
-    this.currentScore += points;
+  addScore(_points: number): void {
+    // Score is now derived from dragonEvent collection total
+    // No longer need to manually track - update() will handle it
   }
 
   getScore(): number {
-    return this.currentScore;
+    return this.dragonEvent?.getCollectionTotal() || 0;
   }
 
   setCombo(combo: number): void {
@@ -217,17 +215,26 @@ export class ScoreDisplay {
   }
 
   update(): void {
-    // Animate score counting up
-    if (this.displayedScore < this.currentScore) {
-      const diff = this.currentScore - this.displayedScore;
-      const increment = Math.ceil(diff / 8);
-      this.displayedScore = Math.min(this.displayedScore + increment, this.currentScore);
+    // Get actual gem count from dragon event (accounts for stolen gems)
+    const currentScore = this.dragonEvent?.getCollectionTotal() || 0;
+
+    // Animate score counting up or down
+    if (this.displayedScore !== currentScore) {
+      const diff = currentScore - this.displayedScore;
+      const increment = Math.ceil(Math.abs(diff) / 8) * Math.sign(diff);
+      this.displayedScore += increment;
+
+      // Clamp to target
+      if ((diff > 0 && this.displayedScore > currentScore) ||
+          (diff < 0 && this.displayedScore < currentScore)) {
+        this.displayedScore = currentScore;
+      }
+
       this.scoreValueElement.textContent = this.displayedScore.toLocaleString();
     }
   }
 
   reset(): void {
-    this.currentScore = 0;
     this.displayedScore = 0;
     this.scoreValueElement.textContent = '0';
     this.comboElement.classList.add('hidden');
