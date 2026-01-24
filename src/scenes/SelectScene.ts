@@ -2,7 +2,8 @@ import { Scene } from '../game/GameState';
 import { UIManager } from '../ui/UIManager';
 import { eventBus } from '../utils/EventBus';
 import { Renderer3D } from '../renderer/Renderer3D';
-import { PRINCESSES, Princess } from '../characters/princessData';
+import { PRINCESSES } from '../characters/princessData';
+import { Princess } from '../characters/Princess';
 
 export class SelectScene implements Scene {
   private uiManager: UIManager;

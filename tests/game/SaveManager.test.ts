@@ -7,12 +7,15 @@ import { Princess } from '../../src/characters/Princess';
 vi.mock('js-cookie', () => ({
   default: {
     set: vi.fn(),
-    get: vi.fn(),
+    get: vi.fn() as ReturnType<typeof vi.fn>,
     remove: vi.fn(),
   },
 }));
 
 import Cookies from 'js-cookie';
+
+// Type helper for mocking
+const mockCookiesGet = Cookies.get as ReturnType<typeof vi.fn>;
 
 describe('SaveManager', () => {
   let saveManager: SaveManager;
@@ -51,7 +54,7 @@ describe('SaveManager', () => {
         savedAt: new Date().toISOString(),
       };
 
-      vi.mocked(Cookies.get).mockReturnValue(JSON.stringify(saveData));
+      mockCookiesGet.mockReturnValue(JSON.stringify(saveData));
 
       const result = saveManager.load();
 
@@ -59,7 +62,7 @@ describe('SaveManager', () => {
     });
 
     it('should return null when no save exists', () => {
-      vi.mocked(Cookies.get).mockReturnValue(undefined);
+      mockCookiesGet.mockReturnValue(undefined);
 
       const result = saveManager.load();
 
@@ -69,12 +72,12 @@ describe('SaveManager', () => {
 
   describe('hasSave', () => {
     it('should return true when save exists', () => {
-      vi.mocked(Cookies.get).mockReturnValue('{}');
+      mockCookiesGet.mockReturnValue('{}');
       expect(saveManager.hasSave()).toBe(true);
     });
 
     it('should return false when no save exists', () => {
-      vi.mocked(Cookies.get).mockReturnValue(undefined);
+      mockCookiesGet.mockReturnValue(undefined);
       expect(saveManager.hasSave()).toBe(false);
     });
   });

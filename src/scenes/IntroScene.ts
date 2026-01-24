@@ -2,7 +2,8 @@ import { Scene } from '../game/GameState';
 import { UIManager } from '../ui/UIManager';
 import { eventBus } from '../utils/EventBus';
 import { Renderer3D } from '../renderer/Renderer3D';
-import { Princess, getDefaultPrincess } from '../characters/princessData';
+import { getDefaultPrincess } from '../characters/princessData';
+import { Princess } from '../characters/Princess';
 import { DragonModel } from '../renderer/DragonModel';
 
 export class IntroScene implements Scene {

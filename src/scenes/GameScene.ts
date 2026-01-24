@@ -10,7 +10,8 @@ import { DragonModel } from '../renderer/DragonModel';
 import { ScoreDisplay } from '../ui/ScoreDisplay';
 import { DragonEvent } from '../puzzle/DragonEvent';
 import { eventBus } from '../utils/EventBus';
-import { Princess, getDefaultPrincess } from '../characters/princessData';
+import { getDefaultPrincess } from '../characters/princessData';
+import { Princess } from '../characters/Princess';
 import { GEM_COLORS } from '../puzzle/Gem';
 
 export class GameScene implements Scene {
