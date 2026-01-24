@@ -117,8 +117,18 @@ export class Game {
       eventBus.emit('princessSelected', princess);
     }
 
-    // The game scene will need to be modified to accept restored state
-    console.log('Game loaded:', saveData);
+    // Restore the game state
+    const collection = this.saveManager.restoreCollection(saveData);
+    this.gameScene.restoreState(
+      saveData.boardState,
+      collection,
+      saveData.score,
+      saveData.dragonCounter
+    );
+
+    // Switch to play state
+    this.gameState.setState('play');
+    console.log('Game loaded successfully');
   }
 
   start(): void {

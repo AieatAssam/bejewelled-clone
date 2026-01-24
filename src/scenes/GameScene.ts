@@ -12,7 +12,7 @@ import { DragonEvent } from '../puzzle/DragonEvent';
 import { eventBus } from '../utils/EventBus';
 import { getDefaultPrincess } from '../characters/princessData';
 import { Princess } from '../characters/Princess';
-import { GEM_COLORS } from '../puzzle/Gem';
+import { GEM_COLORS, GemType, createGem } from '../puzzle/Gem';
 
 export class GameScene implements Scene {
   private uiManager: UIManager;
@@ -595,16 +595,26 @@ export class GameScene implements Scene {
 
   private createDragonMeter(): void {
     this.dragonMeter = document.createElement('div');
-    this.dragonMeter.id = 'dragon-meter';
+    this.dragonMeter.id = 'dragon-meter-container';
+
+    const title = document.createElement('div');
+    title.id = 'dragon-meter-title';
+    title.innerHTML = '🐉 Dragon Threat';
+    this.dragonMeter.appendChild(title);
+
+    const meterBar = document.createElement('div');
+    meterBar.id = 'dragon-meter';
 
     this.dragonMeterFill = document.createElement('div');
     this.dragonMeterFill.id = 'dragon-meter-fill';
-    this.dragonMeter.appendChild(this.dragonMeterFill);
+    meterBar.appendChild(this.dragonMeterFill);
 
-    const label = document.createElement('div');
-    label.id = 'dragon-meter-label';
-    label.textContent = 'Dragon Warning';
-    this.dragonMeter.appendChild(label);
+    this.dragonMeter.appendChild(meterBar);
+
+    const hint = document.createElement('div');
+    hint.id = 'dragon-meter-hint';
+    hint.textContent = 'Small matches (3) anger dragon. Big combos (4+) calm him!';
+    this.dragonMeter.appendChild(hint);
 
     this.uiManager.getOverlay().appendChild(this.dragonMeter);
   }
@@ -612,8 +622,9 @@ export class GameScene implements Scene {
   private createHintButton(): void {
     this.hintButton = document.createElement('button');
     this.hintButton.id = 'hint-button';
+    this.hintButton.className = 'game-tooltip';
     this.hintButton.innerHTML = '?';
-    this.hintButton.title = 'Show hint';
+    this.hintButton.setAttribute('data-tooltip', 'Show Hint - Highlight a valid move');
 
     this.hintButton.addEventListener('click', () => {
       this.showHint();
@@ -625,8 +636,9 @@ export class GameScene implements Scene {
   private createShuffleButton(): void {
     this.shuffleButton = document.createElement('button');
     this.shuffleButton.id = 'shuffle-button';
+    this.shuffleButton.className = 'game-tooltip';
     this.shuffleButton.innerHTML = '✨';
-    this.shuffleButton.title = 'Fairy Dust - Rearrange gems (costs 20% of collection)';
+    this.shuffleButton.setAttribute('data-tooltip', 'Fairy Dust - Shuffle board (costs 20% gems)');
 
     this.shuffleButton.addEventListener('click', () => {
       this.useFairyDust();
@@ -783,5 +795,39 @@ export class GameScene implements Scene {
 
   getScore(): number {
     return this.scoreDisplay.getScore();
+  }
+
+  restoreState(
+    boardState: (string | null)[][],
+    collection: Map<GemType, number>,
+    score: number,
+    dragonCounter: number
+  ): void {
+    // Reset and restore board
+    this.board.clear();
+    this.gemMeshManager.clear();
+
+    // Restore gems from saved state
+    for (let row = 0; row < boardState.length; row++) {
+      for (let col = 0; col < boardState[row].length; col++) {
+        const gemType = boardState[row][col];
+        if (gemType) {
+          const gem = createGem(gemType as GemType, { row, col });
+          this.board.setGem(row, col, gem);
+          this.gemMeshManager.addGem(gem);
+        }
+      }
+    }
+
+    // Restore collection
+    this.dragonEvent.setCollection(collection);
+
+    // Restore score
+    this.scoreDisplay.setScore(score);
+
+    // Restore dragon counter
+    this.controller.setConsecutiveSmallChains(dragonCounter);
+
+    this.isInitialized = true;
   }
 }

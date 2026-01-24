@@ -162,6 +162,10 @@ export class BoardController {
     return this.consecutiveSmallChains;
   }
 
+  setConsecutiveSmallChains(count: number): void {
+    this.consecutiveSmallChains = count;
+  }
+
   resetSmallChainCounter(): void {
     this.consecutiveSmallChains = 0;
   }

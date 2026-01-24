@@ -183,34 +183,49 @@
     }
 
     /* Dragon warning meter */
-    #dragon-meter {
+    #dragon-meter-container {
       position: absolute;
-      bottom: 20px;
+      bottom: 15px;
       left: 50%;
       transform: translateX(-50%);
-      width: 200px;
-      height: 20px;
-      background: rgba(0,0,0,0.6);
+      text-align: center;
+      background: rgba(0,0,0,0.7);
+      padding: 8px 15px 10px;
+      border-radius: 12px;
       border: 2px solid #8b0000;
-      border-radius: 10px;
+    }
+
+    #dragon-meter-title {
+      color: #ff6600;
+      font-family: 'Quicksand', sans-serif;
+      font-size: 0.9rem;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    #dragon-meter {
+      width: 180px;
+      height: 14px;
+      background: rgba(50,20,20,0.8);
+      border: 1px solid #660000;
+      border-radius: 7px;
       overflow: hidden;
     }
 
     #dragon-meter-fill {
       height: 100%;
-      background: linear-gradient(90deg, #ff4500, #ff0000);
+      background: linear-gradient(90deg, #ff6600, #ff0000);
       width: 0%;
       transition: width 0.3s ease;
+      box-shadow: 0 0 8px #ff4400;
     }
 
-    #dragon-meter-label {
-      position: absolute;
-      width: 100%;
-      text-align: center;
-      color: white;
-      font-size: 0.75rem;
-      line-height: 20px;
-      text-shadow: 1px 1px 2px black;
+    #dragon-meter-hint {
+      color: #aaa;
+      font-family: 'Quicksand', sans-serif;
+      font-size: 0.7rem;
+      margin-top: 5px;
+      max-width: 200px;
     }
 
     /* Menu styles */
@@ -403,17 +418,18 @@
       position: absolute;
       top: 35%;
       left: 50%;
-      transform: translateX(-50%);
+      transform: translate(-50%, -50%);
       font-family: 'Quicksand', sans-serif;
       font-size: 1.6rem;
       color: #ffcc00;
+      text-align: center;
       text-shadow: 0 0 15px #ff6600, 2px 2px 4px rgba(0,0,0,0.8);
       background: rgba(139, 0, 0, 0.85);
       padding: 15px 30px;
       border-radius: 10px;
       border: 3px solid #ff4500;
       z-index: 101;
-      animation: stolenBounce 0.5s ease-out;
+      animation: stolenBounce 0.5s ease-out forwards;
     }
 
     #dragon-stolen-message strong {
@@ -429,9 +445,9 @@
     }
 
     @keyframes stolenBounce {
-      0% { transform: translateX(-50%) scale(0.5); opacity: 0; }
-      50% { transform: translateX(-50%) scale(1.1); }
-      100% { transform: translateX(-50%) scale(1); opacity: 1; }
+      0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+      50% { transform: translate(-50%, -50%) scale(1.1); }
+      100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
     }
 
     /* Intro text */
@@ -496,6 +512,35 @@
 
     #hint-button:hover {
       transform: scale(1.1);
+    }
+
+    /* Tooltip styles */
+    .game-tooltip {
+      position: relative;
+    }
+
+    .game-tooltip::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 120%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.9);
+      color: #ffd700;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-family: 'Quicksand', sans-serif;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      border: 1px solid #ffd700;
+      z-index: 200;
+    }
+
+    .game-tooltip:hover::after {
+      opacity: 1;
     }
 
     #shuffle-button {
