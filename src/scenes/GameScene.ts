@@ -638,25 +638,88 @@ export class GameScene implements Scene {
 
     const hint = this.findValidMove();
     if (hint) {
-      this.gemMeshManager.highlightHint(hint.row, hint.col);
+      // Highlight both gems in the swap pair
+      this.gemMeshManager.highlightHint(hint.pos1.row, hint.pos1.col);
+      this.gemMeshManager.highlightHint(hint.pos2.row, hint.pos2.col);
+
+      // Show a visual hint indicator on screen
+      this.showHintArrow(hint.pos1, hint.pos2);
+    } else {
+      this.showNoHintMessage();
     }
   }
 
-  private findValidMove(): { row: number; col: number } | null {
+  private showHintArrow(pos1: { row: number; col: number }, pos2: { row: number; col: number }): void {
+    const worldPos1 = this.gemMeshManager.getFactory().boardToWorld(pos1.row, pos1.col);
+    const worldPos2 = this.gemMeshManager.getFactory().boardToWorld(pos2.row, pos2.col);
+    const screenPos1 = this.worldToScreen(worldPos1);
+    const screenPos2 = this.worldToScreen(worldPos2);
+
+    // Create hint arrow element
+    const hintEl = document.createElement('div');
+    hintEl.className = 'hint-indicator';
+
+    const midX = (screenPos1.x + screenPos2.x) / 2;
+    const midY = (screenPos1.y + screenPos2.y) / 2;
+
+    // Determine direction
+    const isHorizontal = pos1.row === pos2.row;
+    const arrow = isHorizontal ? '↔' : '↕';
+
+    hintEl.innerHTML = arrow;
+    hintEl.style.cssText = `
+      position: fixed;
+      left: ${midX}px;
+      top: ${midY}px;
+      transform: translate(-50%, -50%);
+      font-size: 2.5rem;
+      color: #ffd700;
+      text-shadow: 0 0 20px #ffd700, 0 0 40px #ffaa00;
+      pointer-events: none;
+      z-index: 100;
+      animation: hintPulse 1s ease-in-out 3;
+    `;
+
+    this.uiManager.getOverlay().appendChild(hintEl);
+
+    // Remove after animation
+    setTimeout(() => hintEl.remove(), 3000);
+  }
+
+  private showNoHintMessage(): void {
+    const msg = document.createElement('div');
+    msg.className = 'hint-message';
+    msg.textContent = 'No moves! Shuffling...';
+    this.uiManager.getOverlay().appendChild(msg);
+
+    setTimeout(() => {
+      msg.remove();
+      this.controller.shuffle();
+      this.syncMeshPositions();
+    }, 1000);
+  }
+
+  private findValidMove(): { pos1: { row: number; col: number }; pos2: { row: number; col: number } } | null {
     const matchFinder = this.controller.getMatchFinder();
 
+    // Check all horizontal swaps
     for (let row = 0; row < 8; row++) {
       for (let col = 0; col < 7; col++) {
-        if (matchFinder.wouldCreateMatch(this.board, { row, col }, { row, col: col + 1 })) {
-          return { row, col };
+        const pos1 = { row, col };
+        const pos2 = { row, col: col + 1 };
+        if (matchFinder.wouldCreateMatch(this.board, pos1, pos2)) {
+          return { pos1, pos2 };
         }
       }
     }
 
+    // Check all vertical swaps
     for (let row = 0; row < 7; row++) {
       for (let col = 0; col < 8; col++) {
-        if (matchFinder.wouldCreateMatch(this.board, { row, col }, { row: row + 1, col })) {
-          return { row, col };
+        const pos1 = { row, col };
+        const pos2 = { row: row + 1, col };
+        if (matchFinder.wouldCreateMatch(this.board, pos1, pos2)) {
+          return { pos1, pos2 };
         }
       }
     }

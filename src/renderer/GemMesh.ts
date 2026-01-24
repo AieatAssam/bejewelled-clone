@@ -375,20 +375,40 @@ export class GemMeshManager {
   highlightHint(row: number, col: number): void {
     for (const meshData of this.meshes.values()) {
       if (meshData.gem.position.row === row && meshData.gem.position.col === col) {
-        // Flash the gem
         const gemMesh = meshData.mesh.getObjectByName('gem') as THREE.Mesh;
+        const ring = meshData.mesh.getObjectByName('ring') as THREE.Mesh;
+
         if (gemMesh) {
-          const originalEmissive = (gemMesh.material as THREE.MeshStandardMaterial).emissiveIntensity;
-          (gemMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.8;
+          const material = gemMesh.material as THREE.MeshStandardMaterial;
+          const originalEmissive = material.emissiveIntensity;
+          const originalScale = gemMesh.scale.x;
+
+          // Make ring visible with golden color for hint
+          if (ring) {
+            ring.visible = true;
+            (ring.material as THREE.MeshBasicMaterial).color.set(0xffd700);
+          }
+
+          // Flash brightly and scale up
+          const flash = (bright: boolean) => {
+            if (bright) {
+              material.emissiveIntensity = 1.0;
+              gemMesh.scale.setScalar(1.3);
+            } else {
+              material.emissiveIntensity = originalEmissive;
+              gemMesh.scale.setScalar(originalScale);
+            }
+          };
+
+          flash(true);
+          setTimeout(() => flash(false), 250);
+          setTimeout(() => flash(true), 500);
+          setTimeout(() => flash(false), 750);
+          setTimeout(() => flash(true), 1000);
           setTimeout(() => {
-            (gemMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = originalEmissive;
-          }, 300);
-          setTimeout(() => {
-            (gemMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.8;
-          }, 600);
-          setTimeout(() => {
-            (gemMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = originalEmissive;
-          }, 900);
+            flash(false);
+            if (ring) ring.visible = false;
+          }, 1250);
         }
         break;
       }
