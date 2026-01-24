@@ -455,9 +455,9 @@ export class GameScene implements Scene {
       }
     }
 
-    // Calculate score for this cascade level
-    const cascadeScore = this.calculateCascadeScore(matches, cascadeLevel);
-    this.scoreDisplay.addScore(cascadeScore);
+    // Update score to show total gems collected (not arbitrary points)
+    const gemsCollected = gemIdsToRemove.length;
+    this.scoreDisplay.addScore(gemsCollected);
 
     // Track small chains for dragon event
     this.trackSmallChains(matches);

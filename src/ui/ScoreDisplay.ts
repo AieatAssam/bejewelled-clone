@@ -144,10 +144,10 @@ export class ScoreDisplay {
 
     container.appendChild(svg);
 
-    // Score text overlay
+    // Score text overlay - shows total gems
     const scoreText = document.createElement('div');
     scoreText.className = 'score-text';
-    scoreText.innerHTML = '<span class="score-value">0</span>';
+    scoreText.innerHTML = '<span class="score-value">0</span><span class="score-label">gems</span>';
     container.appendChild(scoreText);
 
     // Click to open pause/menu
