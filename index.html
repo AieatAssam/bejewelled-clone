@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Princess Puzzle Game</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Quicksand:wght@400;600&display=swap" rel="stylesheet">
   <style>
     * {
       margin: 0;
@@ -15,13 +16,14 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: linear-gradient(135deg, #1a0a2e 0%, #2d1b4e 50%, #1a0a2e 100%);
+      font-family: 'Quicksand', sans-serif;
     }
 
     #game-container {
       width: 100%;
       height: 100%;
       position: relative;
+      background: radial-gradient(ellipse at center, #2d1b4e 0%, #1a0a2e 60%, #0d0517 100%);
     }
 
     #game-canvas {
@@ -47,24 +49,160 @@
       display: none !important;
     }
 
-    /* Score display */
-    #score-display {
+    /* Magical background stars */
+    .stars {
       position: absolute;
-      top: 20px;
-      right: 20px;
-      font-family: 'Georgia', serif;
-      color: #ffd700;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      background-image:
+        radial-gradient(2px 2px at 20px 30px, #fff, transparent),
+        radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent),
+        radial-gradient(1px 1px at 90px 40px, #fff, transparent),
+        radial-gradient(2px 2px at 160px 120px, rgba(255,255,255,0.7), transparent),
+        radial-gradient(1px 1px at 230px 80px, #fff, transparent),
+        radial-gradient(2px 2px at 300px 150px, rgba(255,255,255,0.6), transparent);
+      background-size: 350px 200px;
+      animation: twinkle 4s ease-in-out infinite;
     }
 
-    #score-value {
-      font-size: 2.5rem;
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+
+    /* Purse Score Display */
+    #purse-score {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      cursor: pointer;
+      transition: transform 0.3s ease;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+    }
+
+    #purse-score:hover {
+      transform: scale(1.08);
+    }
+
+    #purse-score svg {
+      width: 120px;
+      height: 100px;
+    }
+
+    #purse-score .score-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 1.1rem;
       font-weight: bold;
+      color: #ffd700;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+      text-align: center;
+      pointer-events: none;
     }
 
+    #purse-score .score-value {
+      font-size: 1.4rem;
+      display: block;
+    }
+
+    /* Combo display */
     #combo-display {
-      font-size: 1.2rem;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 3rem;
       color: #ff69b4;
+      text-shadow: 0 0 20px #ff69b4, 0 0 40px #ff69b4;
+      animation: comboPopIn 0.3s ease-out;
+      pointer-events: none;
+    }
+
+    @keyframes comboPopIn {
+      0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+      50% { transform: translate(-50%, -50%) scale(1.2); }
+      100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
+
+    /* Game frame decoration */
+    .game-frame {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      border: 4px solid transparent;
+      border-image: linear-gradient(135deg, #ffd700, #ff69b4, #9370db, #ffd700) 1;
+    }
+
+    .corner-decoration {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      pointer-events: none;
+    }
+
+    .corner-decoration.top-left { top: 10px; left: 10px; }
+    .corner-decoration.top-right { top: 10px; right: 10px; transform: scaleX(-1); }
+    .corner-decoration.bottom-left { bottom: 10px; left: 10px; transform: scaleY(-1); }
+    .corner-decoration.bottom-right { bottom: 10px; right: 10px; transform: scale(-1, -1); }
+
+    /* Princess mini portrait */
+    #princess-mini {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      width: 70px;
+      height: 85px;
+      border-radius: 50% 50% 45% 45%;
+      border: 3px solid #ffd700;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.3s ease;
+      box-shadow: 0 0 15px rgba(255,215,0,0.5);
+    }
+
+    #princess-mini:hover {
+      transform: scale(1.1);
+    }
+
+    /* Dragon warning meter */
+    #dragon-meter {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 200px;
+      height: 20px;
+      background: rgba(0,0,0,0.6);
+      border: 2px solid #8b0000;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    #dragon-meter-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #ff4500, #ff0000);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    #dragon-meter-label {
+      position: absolute;
+      width: 100%;
+      text-align: center;
+      color: white;
+      font-size: 0.75rem;
+      line-height: 20px;
+      text-shadow: 1px 1px 2px black;
     }
 
     /* Menu styles */
@@ -74,48 +212,66 @@
       left: 50%;
       transform: translate(-50%, -50%);
       text-align: center;
+      padding: 40px;
+      background: radial-gradient(ellipse at center, rgba(45,27,78,0.95) 0%, rgba(26,10,46,0.98) 100%);
+      border: 3px solid;
+      border-image: linear-gradient(135deg, #ffd700, #ff69b4) 1;
+      border-radius: 20px;
     }
 
     .menu-title {
-      font-family: 'Georgia', serif;
-      font-size: 4rem;
-      color: #ffd700;
-      text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 3.5rem;
+      background: linear-gradient(135deg, #ffd700 0%, #ff69b4 50%, #ffd700 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: none;
       margin-bottom: 2rem;
+      animation: shimmer 3s ease-in-out infinite;
+    }
+
+    @keyframes shimmer {
+      0%, 100% { filter: brightness(1); }
+      50% { filter: brightness(1.3); }
     }
 
     .menu-button {
       display: block;
-      width: 250px;
-      padding: 15px 30px;
-      margin: 10px auto;
-      font-family: 'Georgia', serif;
-      font-size: 1.5rem;
+      width: 280px;
+      padding: 18px 35px;
+      margin: 12px auto;
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 1.3rem;
       color: white;
-      background: linear-gradient(135deg, #8b008b 0%, #4b0082 100%);
+      background: linear-gradient(135deg, #8b008b 0%, #4b0082 50%, #8b008b 100%);
+      background-size: 200% 200%;
       border: 3px solid #ffd700;
-      border-radius: 10px;
+      border-radius: 30px;
       cursor: pointer;
       transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 2px;
     }
 
     .menu-button:hover {
       transform: scale(1.05);
-      box-shadow: 0 0 20px rgba(255,215,0,0.5);
+      box-shadow: 0 0 30px rgba(255,215,0,0.6), inset 0 0 20px rgba(255,215,0,0.2);
+      background-position: 100% 0;
     }
 
     /* Princess selection */
     .princess-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
+      gap: 25px;
       padding: 20px;
     }
 
     .princess-card {
-      width: 150px;
-      height: 200px;
-      border-radius: 15px;
+      width: 180px;
+      height: 240px;
+      border-radius: 20px;
       border: 3px solid #ffd700;
       cursor: pointer;
       transition: all 0.3s ease;
@@ -124,17 +280,37 @@
       align-items: center;
       justify-content: center;
       color: white;
-      font-family: 'Georgia', serif;
+      font-family: 'Cinzel Decorative', serif;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .princess-card::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+      transform: rotate(45deg);
+      animation: cardShine 3s ease-in-out infinite;
+    }
+
+    @keyframes cardShine {
+      0% { transform: translateX(-100%) rotate(45deg); }
+      100% { transform: translateX(100%) rotate(45deg); }
     }
 
     .princess-card:hover {
-      transform: scale(1.1);
-      box-shadow: 0 0 30px rgba(255,215,0,0.7);
+      transform: scale(1.1) translateY(-5px);
+      box-shadow: 0 15px 40px rgba(255,215,0,0.5);
     }
 
     .princess-name {
-      font-size: 1.3rem;
+      font-size: 1.4rem;
       margin-top: 10px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
     }
 
     /* Pause menu */
@@ -143,30 +319,57 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      background: rgba(0,0,0,0.9);
-      padding: 40px;
-      border-radius: 20px;
+      background: radial-gradient(ellipse at center, rgba(20,10,40,0.98) 0%, rgba(10,5,20,0.99) 100%);
+      padding: 30px 40px;
+      border-radius: 25px;
       border: 3px solid #ffd700;
+      min-width: 350px;
     }
 
     /* Purse inventory */
+    .purse-container {
+      background: linear-gradient(180deg, rgba(139,69,19,0.9) 0%, rgba(101,67,33,0.95) 100%);
+      border: 4px solid #ffd700;
+      border-radius: 20px;
+      padding: 25px;
+      min-width: 340px;
+    }
+
+    .purse-title {
+      font-family: 'Cinzel Decorative', serif;
+      color: #ffd700;
+      text-align: center;
+      font-size: 1.8rem;
+      margin-bottom: 15px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    }
+
     .purse-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 15px;
-      margin: 20px 0;
+      gap: 12px;
+      margin: 15px 0;
     }
 
     .purse-item {
       text-align: center;
-      padding: 10px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 10px;
+      padding: 10px 5px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 12px;
+      border: 2px solid rgba(255,215,0,0.3);
+      transition: transform 0.2s ease;
+    }
+
+    .purse-item:hover {
+      transform: scale(1.05);
+      border-color: #ffd700;
     }
 
     .purse-count {
-      font-size: 1.5rem;
+      font-size: 1.3rem;
       color: #ffd700;
+      font-weight: bold;
+      margin-top: 5px;
     }
 
     /* Dragon warning */
@@ -175,48 +378,110 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      font-family: 'Georgia', serif;
-      font-size: 3rem;
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 3.5rem;
       color: #ff4500;
-      text-shadow: 0 0 20px #ff4500;
-      animation: pulse 0.5s ease-in-out infinite;
+      text-shadow: 0 0 30px #ff4500, 0 0 60px #ff0000;
+      animation: dragonPulse 0.3s ease-in-out infinite;
+      z-index: 100;
     }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
+    @keyframes dragonPulse {
+      0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+      50% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.8; }
     }
 
     /* Intro text */
-    .intro-text {
+    .intro-container {
       position: absolute;
-      bottom: 100px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 80%;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: radial-gradient(ellipse at center, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.9) 100%);
+    }
+
+    .intro-text {
+      width: 70%;
+      max-width: 700px;
       text-align: center;
-      font-family: 'Georgia', serif;
-      font-size: 1.5rem;
+      font-family: 'Quicksand', sans-serif;
+      font-size: 1.6rem;
       color: white;
       text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-      line-height: 1.6;
+      line-height: 1.8;
+      padding: 30px;
+      background: rgba(45,27,78,0.6);
+      border-radius: 20px;
+      border: 2px solid rgba(255,215,0,0.3);
     }
 
     .continue-prompt {
-      margin-top: 30px;
-      font-size: 1.2rem;
+      margin-top: 40px;
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 1.3rem;
       color: #ffd700;
-      animation: blink 1s ease-in-out infinite;
+      animation: promptBlink 1.5s ease-in-out infinite;
     }
 
-    @keyframes blink {
+    @keyframes promptBlink {
       0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Hint button */
+    #hint-button {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ffd700, #ff8c00);
+      border: 3px solid #fff;
+      cursor: pointer;
+      font-size: 1.5rem;
+      color: white;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+      transition: transform 0.3s ease;
+      box-shadow: 0 4px 15px rgba(255,215,0,0.5);
+    }
+
+    #hint-button:hover {
+      transform: scale(1.1);
+    }
+
+    /* No moves warning */
+    #no-moves-warning {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 2rem;
+      color: #ffd700;
+      background: rgba(0,0,0,0.9);
+      padding: 20px 40px;
+      border-radius: 15px;
+      border: 2px solid #ffd700;
+      animation: fadeInOut 2s ease-in-out;
+    }
+
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+      20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
     }
   </style>
 </head>
 <body>
   <div id="game-container">
+    <div class="stars"></div>
     <canvas id="game-canvas"></canvas>
     <div id="ui-overlay"></div>
   </div>

@@ -8,55 +8,70 @@ export class Renderer3D {
   private ambientLight: THREE.AmbientLight;
   private directionalLight: THREE.DirectionalLight;
   private pointLights: THREE.PointLight[] = [];
+  private hemisphereLight: THREE.HemisphereLight;
 
   constructor(canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene();
+
+    // Create a magical gradient background
     this.scene.background = new THREE.Color(0x1a0a2e);
 
     this.camera = new THREE.PerspectiveCamera(
-      45,
+      50,
       window.innerWidth / window.innerHeight,
       0.1,
       1000
     );
-    this.camera.position.set(0, 0, 15);
+    this.camera.position.set(0, 0, 12);
     this.camera.lookAt(0, 0, 0);
 
     this.renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: true,
       alpha: true,
+      powerPreference: 'high-performance',
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.enabled = false; // Disable shadows for performance
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.2;
 
-    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    // Hemisphere light for soft ambient lighting
+    this.hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444499, 0.6);
+    this.scene.add(this.hemisphereLight);
+
+    // Ambient light for base brightness
+    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     this.scene.add(this.ambientLight);
 
-    this.directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    this.directionalLight.position.set(5, 10, 7);
-    this.directionalLight.castShadow = true;
-    this.directionalLight.shadow.mapSize.width = 2048;
-    this.directionalLight.shadow.mapSize.height = 2048;
+    // Main directional light (from camera direction)
+    this.directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    this.directionalLight.position.set(2, 4, 10);
     this.scene.add(this.directionalLight);
+
+    // Add rim light for sparkle
+    const rimLight = new THREE.DirectionalLight(0xffd700, 0.4);
+    rimLight.position.set(-5, 3, -2);
+    this.scene.add(rimLight);
 
     this.setupPointLights();
     this.setupResizeHandler();
   }
 
   private setupPointLights(): void {
-    const colors = [0xff69b4, 0x9966cc, 0xffd700];
-    const positions = [
-      [-8, 5, 5],
-      [8, 5, 5],
-      [0, -5, 8],
+    // Colorful accent lights for magical feel
+    const lightConfig = [
+      { color: 0xff69b4, pos: [-6, 4, 4], intensity: 0.4 },  // Pink
+      { color: 0x9966ff, pos: [6, 4, 4], intensity: 0.4 },   // Purple
+      { color: 0xffd700, pos: [0, -4, 6], intensity: 0.3 },  // Gold
+      { color: 0x44ddff, pos: [0, 6, 3], intensity: 0.3 },   // Cyan
     ];
 
-    colors.forEach((color, i) => {
-      const light = new THREE.PointLight(color, 0.3, 20);
-      light.position.set(positions[i][0], positions[i][1], positions[i][2]);
+    lightConfig.forEach(({ color, pos, intensity }) => {
+      const light = new THREE.PointLight(color, intensity, 15);
+      light.position.set(pos[0], pos[1], pos[2]);
       this.pointLights.push(light);
       this.scene.add(light);
     });
