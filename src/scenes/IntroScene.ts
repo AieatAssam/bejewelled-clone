@@ -4,17 +4,15 @@ import { eventBus } from '../utils/EventBus';
 import { Renderer3D } from '../renderer/Renderer3D';
 import { getDefaultPrincess } from '../characters/princessData';
 import { Princess } from '../characters/Princess';
-import { DragonModel } from '../renderer/DragonModel';
 
 export class IntroScene implements Scene {
   private uiManager: UIManager;
   private renderer: Renderer3D;
   private container: HTMLElement | null = null;
   private princess: Princess;
-  private dragon: DragonModel;
   private storyPhase: number = 0;
-  private phaseTime: number = 0;
   private textElement: HTMLElement | null = null;
+  private clickHandler: (() => void) | null = null;
 
   private storyTexts: string[] = [
     'In a kingdom of sparkling jewels and radiant gems...',
@@ -29,8 +27,6 @@ export class IntroScene implements Scene {
     this.uiManager = uiManager;
     this.renderer = renderer;
     this.princess = getDefaultPrincess();
-    this.dragon = new DragonModel();
-    this.renderer.add(this.dragon.getGroup());
 
     eventBus.on('princessSelected', (princess: Princess) => {
       this.princess = princess;
@@ -39,20 +35,13 @@ export class IntroScene implements Scene {
 
   enter(): void {
     this.storyPhase = 0;
-    this.phaseTime = 0;
     this.createUI();
     this.showStoryText(0);
   }
 
   private createUI(): void {
     this.container = document.createElement('div');
-    this.container.style.cssText = `
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-    `;
+    this.container.className = 'intro-container';
 
     this.textElement = document.createElement('div');
     this.textElement.className = 'intro-text';
@@ -63,13 +52,12 @@ export class IntroScene implements Scene {
     promptElement.textContent = 'Click to continue...';
     this.container.appendChild(promptElement);
 
-    this.container.addEventListener('click', () => {
-      this.advanceStory();
-    });
+    this.clickHandler = () => this.advanceStory();
+    this.container.addEventListener('click', this.clickHandler);
 
     document.addEventListener('keydown', this.handleKeyDown);
 
-    this.uiManager.showElement(this.container);
+    this.uiManager.getOverlay().appendChild(this.container);
   }
 
   private handleKeyDown = (e: KeyboardEvent): void => {
@@ -90,11 +78,6 @@ export class IntroScene implements Scene {
           this.textElement.style.opacity = '1';
         }
       }, 100);
-
-      // Show dragon flying at phase 3
-      if (phase === 2) {
-        this.dragon.flyAcrossScreen();
-      }
     }
   }
 
@@ -111,15 +94,20 @@ export class IntroScene implements Scene {
     document.removeEventListener('keydown', this.handleKeyDown);
 
     if (this.container) {
-      this.uiManager.hideCurrentUI();
+      if (this.clickHandler) {
+        this.container.removeEventListener('click', this.clickHandler);
+        this.clickHandler = null;
+      }
+      if (this.container.parentNode) {
+        this.container.parentNode.removeChild(this.container);
+      }
       this.container = null;
       this.textElement = null;
     }
   }
 
   update(deltaTime: number): void {
-    this.phaseTime += deltaTime;
-    this.dragon.update(deltaTime);
+    // No updates needed
   }
 
   render(): void {

@@ -55,7 +55,12 @@ export class Game {
 
   private setupEventListeners(): void {
     eventBus.on('changeState', (state: unknown) => {
-      this.gameState.setState(state as GameStateType);
+      const newState = state as GameStateType;
+      // Reset game when going to menu or starting fresh from intro
+      if (newState === 'menu' || newState === 'intro') {
+        this.gameScene.resetGame();
+      }
+      this.gameState.setState(newState);
     });
 
     eventBus.on('saveGame', () => {

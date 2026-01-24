@@ -36,12 +36,15 @@ export class GameScene implements Scene {
   private isDragging: boolean = false;
   private dragStartPos: { row: number; col: number } | null = null;
   private dragStartScreenPos: THREE.Vector2 = new THREE.Vector2();
+  private pendingStolenCount: number = 0;
+  private isInitialized: boolean = false;
 
   // UI elements
   private princessMini: HTMLElement | null = null;
   private dragonMeter: HTMLElement | null = null;
   private dragonMeterFill: HTMLElement | null = null;
   private hintButton: HTMLElement | null = null;
+  private shuffleButton: HTMLElement | null = null;
   private gameDecorations: HTMLElement | null = null;
 
   constructor(uiManager: UIManager, renderer: Renderer3D) {
@@ -74,6 +77,11 @@ export class GameScene implements Scene {
       this.triggerDragonAttack();
     });
 
+    // Stolen message is now shown after dragon animation completes
+    eventBus.on('dragonStole', (result: { totalStolen: number }) => {
+      this.pendingStolenCount = result.totalStolen;
+    });
+
     eventBus.on('gemsRemoved', (matches: { gems: { position: { row: number; col: number }; type: string }[] }[], cascadeCount: number) => {
       for (const match of matches) {
         for (const gem of match.gems) {
@@ -90,9 +98,14 @@ export class GameScene implements Scene {
   }
 
   enter(): void {
-    this.initializeGame();
+    // Only initialize on first entry, not when returning from pause
+    if (!this.isInitialized) {
+      this.initializeGame();
+      this.isInitialized = true;
+    }
     this.setupInput();
     this.createUI();
+    this.updateDragonMeter(); // Restore dragon meter display
   }
 
   private initializeGame(): void {
@@ -427,6 +440,11 @@ export class GameScene implements Scene {
     this.showDragonWarning();
     this.dragon.flyAcrossScreen(() => {
       this.hideDragonWarning();
+      // Show stolen message after dragon finishes
+      if (this.pendingStolenCount > 0) {
+        this.showStolenMessage(this.pendingStolenCount);
+        this.pendingStolenCount = 0;
+      }
     });
   }
 
@@ -442,6 +460,18 @@ export class GameScene implements Scene {
       this.dragonWarning.remove();
       this.dragonWarning = null;
     }
+  }
+
+  private showStolenMessage(totalStolen: number): void {
+    const message = document.createElement('div');
+    message.id = 'dragon-stolen-message';
+    message.innerHTML = `🐉 Dragon stole <strong>${totalStolen}</strong> gem${totalStolen !== 1 ? 's' : ''}!`;
+    this.uiManager.getOverlay().appendChild(message);
+
+    setTimeout(() => {
+      message.classList.add('fade-out');
+      setTimeout(() => message.remove(), 500);
+    }, 2500);
   }
 
   private updateDragonMeter(): void {
@@ -491,6 +521,7 @@ export class GameScene implements Scene {
     this.createPrincessMini();
     this.createDragonMeter();
     this.createHintButton();
+    this.createShuffleButton();
     this.createDecorations();
   }
 
@@ -591,6 +622,55 @@ export class GameScene implements Scene {
     this.uiManager.getOverlay().appendChild(this.hintButton);
   }
 
+  private createShuffleButton(): void {
+    this.shuffleButton = document.createElement('button');
+    this.shuffleButton.id = 'shuffle-button';
+    this.shuffleButton.innerHTML = '✨';
+    this.shuffleButton.title = 'Fairy Dust - Rearrange gems (costs 20% of collection)';
+
+    this.shuffleButton.addEventListener('click', () => {
+      this.useFairyDust();
+    });
+
+    this.uiManager.getOverlay().appendChild(this.shuffleButton);
+  }
+
+  private useFairyDust(): void {
+    if (this.isProcessing) return;
+
+    const total = this.dragonEvent.getCollectionTotal();
+    if (total < 5) {
+      this.showFairyDustMessage('Not enough gems for Fairy Dust!', false);
+      return;
+    }
+
+    // Cost: 20% of collection (minimum 1 gem)
+    const cost = Math.max(1, Math.floor(total * 0.2));
+
+    // Deduct gems from collection
+    this.dragonEvent.payFairyDustCost(cost);
+
+    // Shuffle the board
+    this.controller.shuffle();
+    this.syncMeshPositions();
+    this.controller.ensureValidMoves();
+
+    this.showFairyDustMessage(`✨ Fairy Dust used! (${cost} gems spent)`, true);
+  }
+
+  private showFairyDustMessage(text: string, success: boolean): void {
+    const message = document.createElement('div');
+    message.id = 'fairy-dust-message';
+    message.textContent = text;
+    message.style.color = success ? '#ffdd44' : '#ff6666';
+    this.uiManager.getOverlay().appendChild(message);
+
+    setTimeout(() => {
+      message.classList.add('fade-out');
+      setTimeout(() => message.remove(), 500);
+    }, 2000);
+  }
+
   private createDecorations(): void {
     this.gameDecorations = document.createElement('div');
     this.gameDecorations.className = 'game-frame';
@@ -628,11 +708,11 @@ export class GameScene implements Scene {
   }
 
   exit(): void {
+    // Just hide UI elements, don't destroy game state (we might return from pause)
     this.scoreDisplay.hide();
-    this.gemMeshManager.clear();
-    this.board.clear();
 
     if (this.selectedGem) {
+      this.gemMeshManager.setSelected(this.selectedGem.id, false);
       this.selectedGem = null;
     }
     this.isDragging = false;
@@ -650,6 +730,10 @@ export class GameScene implements Scene {
       this.hintButton.remove();
       this.hintButton = null;
     }
+    if (this.shuffleButton) {
+      this.shuffleButton.remove();
+      this.shuffleButton = null;
+    }
     if (this.gameDecorations) {
       this.gameDecorations.remove();
       this.gameDecorations = null;
@@ -659,6 +743,19 @@ export class GameScene implements Scene {
     if (comboEl.parentNode) {
       comboEl.remove();
     }
+
+    const scoreEl = this.scoreDisplay.getElement();
+    if (scoreEl.parentNode) {
+      scoreEl.remove();
+    }
+  }
+
+  resetGame(): void {
+    // Called when starting a truly new game
+    this.isInitialized = false;
+    this.gemMeshManager.clear();
+    this.board.clear();
+    this.scoreDisplay.reset();
   }
 
   update(deltaTime: number): void {

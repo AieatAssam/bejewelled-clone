@@ -17,15 +17,15 @@ export interface GemColors {
   glow: number;
 }
 
-// Vibrant, candy-like colors that appeal to children
+// Deep, rich jewel colors
 export const GEM_COLORS: Record<GemType, GemColors> = {
-  [GemType.Ruby]: { primary: 0xff3366, secondary: 0xff6b9d, glow: 0xff1144 },
-  [GemType.Sapphire]: { primary: 0x4488ff, secondary: 0x77aaff, glow: 0x2266ff },
-  [GemType.Emerald]: { primary: 0x44dd88, secondary: 0x77ffaa, glow: 0x22cc66 },
-  [GemType.Diamond]: { primary: 0xeeffff, secondary: 0xffffff, glow: 0xaaddff },
-  [GemType.Amethyst]: { primary: 0xbb66ff, secondary: 0xdd99ff, glow: 0x9933ff },
-  [GemType.GoldBracelet]: { primary: 0xffcc33, secondary: 0xffdd66, glow: 0xffaa00 },
-  [GemType.PearlEarring]: { primary: 0xffeeff, secondary: 0xfff5ff, glow: 0xffbbdd },
+  [GemType.Ruby]: { primary: 0xcc0022, secondary: 0xff2244, glow: 0x880011 },
+  [GemType.Sapphire]: { primary: 0x1133aa, secondary: 0x2255dd, glow: 0x0a1a66 },
+  [GemType.Emerald]: { primary: 0x118844, secondary: 0x22bb66, glow: 0x084422 },
+  [GemType.Diamond]: { primary: 0xaaeeff, secondary: 0xffffff, glow: 0x6699cc },
+  [GemType.Amethyst]: { primary: 0x7722aa, secondary: 0x9944cc, glow: 0x441166 },
+  [GemType.GoldBracelet]: { primary: 0xffaa00, secondary: 0xffcc44, glow: 0xcc8800 },
+  [GemType.PearlEarring]: { primary: 0xfff0e8, secondary: 0xffffff, glow: 0xeeddcc },
 };
 
 export interface Position {

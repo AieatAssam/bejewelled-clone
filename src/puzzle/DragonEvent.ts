@@ -9,7 +9,10 @@ export interface DragonStealResult {
 
 export class DragonEvent {
   private collection: Map<GemType, number> = new Map();
-  private static readonly STEAL_PERCENTAGE = 0.1;
+  private totalStolenByDragon: number = 0;
+  private static readonly STEAL_PERCENTAGE = 0.15; // 15% stolen
+  private static readonly MIN_STEAL = 1;
+  private static readonly MAX_STEAL = 5;
 
   constructor() {
     this.setupEventListeners();
@@ -49,16 +52,42 @@ export class DragonEvent {
     const stolenGems = new Map<GemType, number>();
     let totalStolen = 0;
 
-    this.collection.forEach((count, type) => {
-      const toSteal = Math.floor(count * DragonEvent.STEAL_PERCENTAGE);
-      if (toSteal > 0) {
-        stolenGems.set(type, toSteal);
+    // Calculate total to steal (capped between MIN and MAX)
+    const collectionTotal = this.getCollectionTotal();
+    if (collectionTotal === 0) {
+      return { stolenGems, totalStolen: 0, percentageStolen: 0 };
+    }
+
+    let targetSteal = Math.floor(collectionTotal * DragonEvent.STEAL_PERCENTAGE);
+    targetSteal = Math.max(DragonEvent.MIN_STEAL, Math.min(DragonEvent.MAX_STEAL, targetSteal));
+
+    // Steal from random gem types until we hit the target
+    const types = Array.from(this.collection.keys()).filter(t => (this.collection.get(t) || 0) > 0);
+    let remaining = targetSteal;
+
+    while (remaining > 0 && types.length > 0) {
+      const randomIndex = Math.floor(Math.random() * types.length);
+      const type = types[randomIndex];
+      const count = this.collection.get(type) || 0;
+
+      if (count > 0) {
+        const toSteal = Math.min(remaining, Math.ceil(count * 0.3), count);
+        stolenGems.set(type, (stolenGems.get(type) || 0) + toSteal);
         this.collection.set(type, count - toSteal);
         totalStolen += toSteal;
+        remaining -= toSteal;
       }
-    });
 
-    const totalBefore = this.getCollectionTotal() + totalStolen;
+      // Remove type if empty
+      if ((this.collection.get(type) || 0) === 0) {
+        types.splice(randomIndex, 1);
+      }
+    }
+
+    // Track total stolen over time
+    this.totalStolenByDragon += totalStolen;
+
+    const totalBefore = collectionTotal;
     const percentageStolen = totalBefore > 0 ? totalStolen / totalBefore : 0;
 
     return {
@@ -66,6 +95,30 @@ export class DragonEvent {
       totalStolen,
       percentageStolen,
     };
+  }
+
+  getTotalStolenByDragon(): number {
+    return this.totalStolenByDragon;
+  }
+
+  payFairyDustCost(cost: number): void {
+    // Deduct gems evenly from collection
+    const types = Array.from(this.collection.keys()).filter(t => (this.collection.get(t) || 0) > 0);
+    let remaining = cost;
+
+    while (remaining > 0 && types.length > 0) {
+      const perType = Math.ceil(remaining / types.length);
+      for (let i = types.length - 1; i >= 0 && remaining > 0; i--) {
+        const type = types[i];
+        const count = this.collection.get(type) || 0;
+        const toDeduct = Math.min(perType, count, remaining);
+        this.collection.set(type, count - toDeduct);
+        remaining -= toDeduct;
+        if ((this.collection.get(type) || 0) === 0) {
+          types.splice(i, 1);
+        }
+      }
+    }
   }
 
   resetCollection(): void {

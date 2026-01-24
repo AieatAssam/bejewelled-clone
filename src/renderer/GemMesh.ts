@@ -2,12 +2,47 @@ import * as THREE from 'three';
 import { GemType, GEM_COLORS, Gem } from '../puzzle/Gem';
 import { BOARD_SIZE } from '../puzzle/Board';
 
-const GEM_SIZE = 0.85;
-const GEM_SPACING = 1.1;
+const GEM_SIZE = 0.42;
+const GEM_SPACING = 1.05;
 
-// Cached geometries and materials for performance
-const geometryCache: Map<GemType, THREE.BufferGeometry> = new Map();
-const materialCache: Map<string, THREE.Material> = new Map();
+// Shared geometries for performance
+let geometriesCreated = false;
+const sharedGeometries: Map<GemType, THREE.BufferGeometry> = new Map();
+
+function createSharedGeometries(): void {
+  if (geometriesCreated) return;
+  geometriesCreated = true;
+
+  // Ruby - Faceted octahedron, compact
+  const rubyGeom = new THREE.OctahedronGeometry(GEM_SIZE * 0.9, 0);
+  rubyGeom.scale(1, 1.1, 0.8);
+  sharedGeometries.set(GemType.Ruby, rubyGeom);
+
+  // Sapphire - Round brilliant cut
+  const sapphireGeom = new THREE.IcosahedronGeometry(GEM_SIZE * 0.8, 0);
+  sharedGeometries.set(GemType.Sapphire, sapphireGeom);
+
+  // Emerald - Rectangular step cut (box with bevels)
+  const emeraldGeom = new THREE.BoxGeometry(GEM_SIZE * 1.2, GEM_SIZE * 0.8, GEM_SIZE * 0.6);
+  sharedGeometries.set(GemType.Emerald, emeraldGeom);
+
+  // Diamond - Small brilliant octahedron
+  const diamondGeom = new THREE.OctahedronGeometry(GEM_SIZE * 0.7, 0);
+  diamondGeom.scale(1, 1.1, 1);
+  sharedGeometries.set(GemType.Diamond, diamondGeom);
+
+  // Amethyst - Dodecahedron crystal
+  const amethystGeom = new THREE.DodecahedronGeometry(GEM_SIZE * 0.75, 0);
+  sharedGeometries.set(GemType.Amethyst, amethystGeom);
+
+  // Gold Bracelet - Simple torus ring
+  const braceletGeom = new THREE.TorusGeometry(GEM_SIZE * 0.5, GEM_SIZE * 0.2, 8, 16);
+  sharedGeometries.set(GemType.GoldBracelet, braceletGeom);
+
+  // Pearl Earring - Small smooth sphere
+  const pearlGeom = new THREE.SphereGeometry(GEM_SIZE * 0.55, 16, 12);
+  sharedGeometries.set(GemType.PearlEarring, pearlGeom);
+}
 
 export interface GemMeshData {
   gem: Gem;
@@ -15,140 +50,119 @@ export interface GemMeshData {
   targetPosition: THREE.Vector3;
   isAnimating: boolean;
   isSelected: boolean;
-  baseY: number;
-}
-
-function createCachedGeometries(): void {
-  if (geometryCache.size > 0) return;
-
-  // Ruby - Heart-like octahedron
-  const rubyGeom = new THREE.OctahedronGeometry(GEM_SIZE * 0.45, 0);
-  rubyGeom.scale(1, 1.1, 0.8);
-
-  // Sapphire - Smooth sphere with facets
-  const sapphireGeom = new THREE.IcosahedronGeometry(GEM_SIZE * 0.42, 1);
-
-  // Emerald - Rectangle cut
-  const emeraldGeom = new THREE.BoxGeometry(GEM_SIZE * 0.7, GEM_SIZE * 0.85, GEM_SIZE * 0.4);
-  emeraldGeom.translate(0, 0, GEM_SIZE * 0.1);
-
-  // Diamond - Classic brilliant cut
-  const diamondGeom = new THREE.OctahedronGeometry(GEM_SIZE * 0.48, 0);
-  diamondGeom.scale(1, 1.3, 1);
-
-  // Amethyst - Crystal cluster look
-  const amethystGeom = new THREE.DodecahedronGeometry(GEM_SIZE * 0.4, 0);
-
-  // Gold Bracelet - Torus
-  const braceletGeom = new THREE.TorusGeometry(GEM_SIZE * 0.32, GEM_SIZE * 0.12, 12, 24);
-  braceletGeom.rotateX(Math.PI / 2);
-
-  // Pearl Earring - Smooth sphere
-  const earringGeom = new THREE.SphereGeometry(GEM_SIZE * 0.35, 24, 24);
-
-  geometryCache.set(GemType.Ruby, rubyGeom);
-  geometryCache.set(GemType.Sapphire, sapphireGeom);
-  geometryCache.set(GemType.Emerald, emeraldGeom);
-  geometryCache.set(GemType.Diamond, diamondGeom);
-  geometryCache.set(GemType.Amethyst, amethystGeom);
-  geometryCache.set(GemType.GoldBracelet, braceletGeom);
-  geometryCache.set(GemType.PearlEarring, earringGeom);
-}
-
-function getCachedMaterial(gemType: GemType): THREE.Material {
-  const cacheKey = gemType;
-  if (materialCache.has(cacheKey)) {
-    return materialCache.get(cacheKey)!;
-  }
-
-  const colors = GEM_COLORS[gemType];
-
-  let material: THREE.Material;
-
-  if (gemType === GemType.Diamond) {
-    // Diamond - Very shiny with rainbow reflections
-    material = new THREE.MeshStandardMaterial({
-      color: colors.primary,
-      metalness: 0.1,
-      roughness: 0.0,
-      emissive: colors.glow,
-      emissiveIntensity: 0.3,
-    });
-  } else if (gemType === GemType.GoldBracelet) {
-    // Gold - Metallic
-    material = new THREE.MeshStandardMaterial({
-      color: colors.primary,
-      metalness: 0.9,
-      roughness: 0.2,
-      emissive: colors.glow,
-      emissiveIntensity: 0.15,
-    });
-  } else if (gemType === GemType.PearlEarring) {
-    // Pearl - Soft luster
-    material = new THREE.MeshStandardMaterial({
-      color: colors.primary,
-      metalness: 0.0,
-      roughness: 0.2,
-      emissive: colors.glow,
-      emissiveIntensity: 0.1,
-    });
-  } else {
-    // Colored gems - Vibrant and shiny
-    material = new THREE.MeshStandardMaterial({
-      color: colors.primary,
-      metalness: 0.15,
-      roughness: 0.1,
-      emissive: colors.glow,
-      emissiveIntensity: 0.25,
-    });
-  }
-
-  materialCache.set(cacheKey, material);
-  return material;
 }
 
 export class GemMeshFactory {
   constructor() {
-    createCachedGeometries();
+    createSharedGeometries();
   }
 
   createMesh(gem: Gem): THREE.Group {
     const group = new THREE.Group();
-    const geometry = geometryCache.get(gem.type)!;
-    const material = getCachedMaterial(gem.type).clone();
-    const colors = GEM_COLORS[gem.type];
+    const geometry = sharedGeometries.get(gem.type)!;
 
-    // Main gem mesh
+    // Create rich, saturated gem materials
+    let material: THREE.MeshStandardMaterial;
+
+    if (gem.type === GemType.Diamond) {
+      // Diamond - sparkling clear with subtle blue tint
+      material = new THREE.MeshStandardMaterial({
+        color: 0xaaeeff,
+        metalness: 0.1,
+        roughness: 0.0,
+        emissive: 0x4488cc,
+        emissiveIntensity: 0.15,
+      });
+    } else if (gem.type === GemType.GoldBracelet) {
+      // Gold - rich metallic yellow
+      material = new THREE.MeshStandardMaterial({
+        color: 0xffaa00,
+        metalness: 0.9,
+        roughness: 0.2,
+        emissive: 0x996600,
+        emissiveIntensity: 0.2,
+      });
+    } else if (gem.type === GemType.PearlEarring) {
+      // Pearl - creamy white with pink tint
+      material = new THREE.MeshStandardMaterial({
+        color: 0xfff0e8,
+        metalness: 0.2,
+        roughness: 0.3,
+        emissive: 0xffddcc,
+        emissiveIntensity: 0.1,
+      });
+    } else if (gem.type === GemType.Ruby) {
+      // Ruby - DEEP rich red
+      material = new THREE.MeshStandardMaterial({
+        color: 0xcc0022,
+        metalness: 0.1,
+        roughness: 0.05,
+        emissive: 0x660011,
+        emissiveIntensity: 0.3,
+      });
+    } else if (gem.type === GemType.Sapphire) {
+      // Sapphire - DEEP royal blue
+      material = new THREE.MeshStandardMaterial({
+        color: 0x1133aa,
+        metalness: 0.1,
+        roughness: 0.05,
+        emissive: 0x0a1a55,
+        emissiveIntensity: 0.3,
+      });
+    } else if (gem.type === GemType.Emerald) {
+      // Emerald - DEEP rich green
+      material = new THREE.MeshStandardMaterial({
+        color: 0x118844,
+        metalness: 0.1,
+        roughness: 0.1,
+        emissive: 0x084422,
+        emissiveIntensity: 0.25,
+      });
+    } else {
+      // Amethyst - DEEP purple
+      material = new THREE.MeshStandardMaterial({
+        color: 0x7722aa,
+        metalness: 0.1,
+        roughness: 0.05,
+        emissive: 0x3a1155,
+        emissiveIntensity: 0.3,
+      });
+    }
+
     const mainMesh = new THREE.Mesh(geometry, material);
-    mainMesh.castShadow = true;
-    mainMesh.receiveShadow = true;
-    mainMesh.name = 'main';
+    mainMesh.name = 'gem';
+
+    // Rotate gold bracelet to lay flat
+    if (gem.type === GemType.GoldBracelet) {
+      mainMesh.rotation.x = Math.PI / 2;
+    }
+
     group.add(mainMesh);
 
-    // Simple glow sprite (much more performant than mesh glow)
-    const glowColor = new THREE.Color(colors.glow);
-    const spriteMaterial = new THREE.SpriteMaterial({
-      color: glowColor,
-      transparent: true,
-      opacity: 0.4,
-      blending: THREE.AdditiveBlending,
-    });
-    const glowSprite = new THREE.Sprite(spriteMaterial);
-    glowSprite.scale.setScalar(GEM_SIZE * 1.5);
-    glowSprite.name = 'glow';
-    group.add(glowSprite);
+    // Add single bright highlight sparkle
+    if (gem.type !== GemType.PearlEarring && gem.type !== GemType.GoldBracelet) {
+      const highlightGeom = new THREE.SphereGeometry(GEM_SIZE * 0.1, 8, 6);
+      const highlightMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.85,
+      });
+      const highlight = new THREE.Mesh(highlightGeom, highlightMat);
+      highlight.position.set(GEM_SIZE * 0.15, GEM_SIZE * 0.25, GEM_SIZE * 0.2);
+      highlight.name = 'highlight';
+      group.add(highlight);
+    }
 
-    // Selection indicator (simple ring)
-    const ringGeom = new THREE.RingGeometry(GEM_SIZE * 0.5, GEM_SIZE * 0.6, 24);
+    // Selection ring (hidden by default)
+    const ringGeom = new THREE.TorusGeometry(GEM_SIZE * 1.2, 0.04, 8, 24);
     const ringMat = new THREE.MeshBasicMaterial({
-      color: 0xffff00,
+      color: 0xffff44,
       transparent: true,
       opacity: 0.9,
-      side: THREE.DoubleSide,
     });
     const ring = new THREE.Mesh(ringGeom, ringMat);
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = -GEM_SIZE * 0.4;
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = -GEM_SIZE * 0.3;
     ring.visible = false;
     ring.name = 'ring';
     group.add(ring);
@@ -187,10 +201,9 @@ export class GemMeshFactory {
   }
 
   dispose(): void {
-    geometryCache.forEach(g => g.dispose());
-    materialCache.forEach(m => m.dispose());
-    geometryCache.clear();
-    materialCache.clear();
+    sharedGeometries.forEach(g => g.dispose());
+    sharedGeometries.clear();
+    geometriesCreated = false;
   }
 }
 
@@ -198,7 +211,7 @@ export class GemMeshManager {
   private factory: GemMeshFactory;
   private meshes: Map<string, GemMeshData> = new Map();
   private scene: THREE.Scene;
-  private animationSpeed: number = 12;
+  private animationSpeed: number = 15;
   private time: number = 0;
 
   constructor(scene: THREE.Scene) {
@@ -216,7 +229,6 @@ export class GemMeshManager {
       targetPosition: mesh.position.clone(),
       isAnimating: false,
       isSelected: false,
-      baseY: mesh.position.y,
     };
 
     this.meshes.set(gem.id, meshData);
@@ -227,14 +239,12 @@ export class GemMeshManager {
     const meshData = this.meshes.get(gemId);
     if (meshData) {
       this.scene.remove(meshData.mesh);
-      // Don't dispose materials as they're cached
       meshData.mesh.traverse((child) => {
-        if (child instanceof THREE.Mesh && child.name === 'ring') {
-          child.geometry.dispose();
-          (child.material as THREE.Material).dispose();
-        }
-        if (child instanceof THREE.Sprite) {
-          (child.material as THREE.Material).dispose();
+        if (child instanceof THREE.Mesh) {
+          if (child.name === 'ring' || child.name === 'highlight') {
+            child.geometry.dispose();
+            (child.material as THREE.Material).dispose();
+          }
         }
       });
       this.meshes.delete(gemId);
@@ -246,7 +256,6 @@ export class GemMeshManager {
     if (!meshData) return;
 
     const targetPos = this.factory.boardToWorld(row, col);
-    meshData.baseY = targetPos.y;
 
     if (animate) {
       meshData.targetPosition.copy(targetPos);
@@ -271,7 +280,6 @@ export class GemMeshManager {
       targetPosition: targetPos.clone(),
       isAnimating: true,
       isSelected: false,
-      baseY: targetPos.y,
     };
 
     this.meshes.set(gem.id, meshData);
@@ -289,36 +297,29 @@ export class GemMeshManager {
       ring.visible = selected;
     }
 
-    // Scale effect
-    const main = meshData.mesh.getObjectByName('main');
-    if (main) {
+    // Scale effect on the main gem
+    const gemMesh = meshData.mesh.getObjectByName('gem');
+    if (gemMesh) {
       if (selected) {
-        main.scale.setScalar(1.2);
+        gemMesh.scale.setScalar(1.25);
       } else {
-        main.scale.setScalar(1.0);
+        gemMesh.scale.setScalar(1.0);
       }
-    }
-
-    // Glow intensity
-    const glow = meshData.mesh.getObjectByName('glow') as THREE.Sprite;
-    if (glow) {
-      (glow.material as THREE.SpriteMaterial).opacity = selected ? 0.7 : 0.4;
     }
   }
 
   update(deltaTime: number): void {
     this.time += deltaTime;
 
-    this.meshes.forEach((meshData, gemId) => {
+    this.meshes.forEach((meshData) => {
       const mesh = meshData.mesh;
 
-      // Position animation - fast interpolation
+      // Position animation
       if (meshData.isAnimating) {
         const target = meshData.targetPosition;
-        const diff = new THREE.Vector3().subVectors(target, mesh.position);
-        const distance = diff.length();
+        const dist = mesh.position.distanceTo(target);
 
-        if (distance < 0.02) {
+        if (dist < 0.02) {
           mesh.position.copy(target);
           meshData.isAnimating = false;
         } else {
@@ -326,32 +327,32 @@ export class GemMeshManager {
         }
       }
 
-      // Idle animations - minimal for performance
+      // Idle animations
       const gem = meshData.gem;
-      const phase = gem.position.row * 0.3 + gem.position.col * 0.5;
+      const phase = gem.position.row * 0.4 + gem.position.col * 0.6;
 
       // Gentle rotation
-      mesh.rotation.y = this.time * 0.8 + phase;
+      mesh.rotation.y = this.time * 0.5 + phase;
 
-      // Subtle bob
+      // Subtle floating
       if (!meshData.isAnimating) {
-        mesh.position.z = Math.sin(this.time * 2 + phase) * 0.02;
+        mesh.position.z = Math.sin(this.time * 1.5 + phase) * 0.015;
       }
 
       // Selection ring animation
       if (meshData.isSelected) {
         const ring = mesh.getObjectByName('ring') as THREE.Mesh;
         if (ring) {
-          ring.rotation.z = this.time * 4;
+          ring.rotation.z = this.time * 3;
+          (ring.material as THREE.MeshBasicMaterial).opacity = 0.7 + Math.sin(this.time * 6) * 0.3;
         }
       }
 
-      // Glow pulse
-      const glow = mesh.getObjectByName('glow') as THREE.Sprite;
-      if (glow) {
-        const baseOpacity = meshData.isSelected ? 0.7 : 0.4;
-        const pulse = Math.sin(this.time * 3 + phase) * 0.1;
-        (glow.material as THREE.SpriteMaterial).opacity = baseOpacity + pulse;
+      // Highlight shimmer
+      const highlight = mesh.getObjectByName('highlight') as THREE.Mesh;
+      if (highlight) {
+        const shimmer = 0.4 + Math.sin(this.time * 2 + phase) * 0.3;
+        (highlight.material as THREE.MeshBasicMaterial).opacity = shimmer;
       }
     });
   }
@@ -374,13 +375,20 @@ export class GemMeshManager {
   highlightHint(row: number, col: number): void {
     for (const meshData of this.meshes.values()) {
       if (meshData.gem.position.row === row && meshData.gem.position.col === col) {
-        const glow = meshData.mesh.getObjectByName('glow') as THREE.Sprite;
-        if (glow) {
-          (glow.material as THREE.SpriteMaterial).color.setHex(0xffff00);
+        // Flash the gem
+        const gemMesh = meshData.mesh.getObjectByName('gem') as THREE.Mesh;
+        if (gemMesh) {
+          const originalEmissive = (gemMesh.material as THREE.MeshStandardMaterial).emissiveIntensity;
+          (gemMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.8;
           setTimeout(() => {
-            const colors = GEM_COLORS[meshData.gem.type];
-            (glow.material as THREE.SpriteMaterial).color.setHex(colors.glow);
-          }, 1500);
+            (gemMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = originalEmissive;
+          }, 300);
+          setTimeout(() => {
+            (gemMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.8;
+          }, 600);
+          setTimeout(() => {
+            (gemMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = originalEmissive;
+          }, 900);
         }
         break;
       }
@@ -391,12 +399,11 @@ export class GemMeshManager {
     this.meshes.forEach((meshData) => {
       this.scene.remove(meshData.mesh);
       meshData.mesh.traverse((child) => {
-        if (child instanceof THREE.Mesh && child.name === 'ring') {
-          child.geometry.dispose();
-          (child.material as THREE.Material).dispose();
-        }
-        if (child instanceof THREE.Sprite) {
-          (child.material as THREE.Material).dispose();
+        if (child instanceof THREE.Mesh) {
+          if (child.name === 'ring' || child.name === 'highlight') {
+            child.geometry.dispose();
+            (child.material as THREE.Material).dispose();
+          }
         }
       });
     });
