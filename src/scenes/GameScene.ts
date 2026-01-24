@@ -36,7 +36,6 @@ export class GameScene implements Scene {
   private isDragging: boolean = false;
   private dragStartPos: { row: number; col: number } | null = null;
   private dragStartScreenPos: THREE.Vector2 = new THREE.Vector2();
-  private pendingStolenCount: number = 0;
   private isInitialized: boolean = false;
 
   // UI elements
@@ -76,11 +75,6 @@ export class GameScene implements Scene {
   private setupEventListeners(): void {
     eventBus.on('dragonEvent', () => {
       this.triggerDragonAttack();
-    });
-
-    // Stolen message is now shown after dragon animation completes
-    eventBus.on('dragonStole', (result: { totalStolen: number }) => {
-      this.pendingStolenCount = result.totalStolen;
     });
 
     eventBus.on('gemsRemoved', (matches: { gems: { position: { row: number; col: number }; type: string }[] }[], cascadeCount: number) => {
@@ -599,10 +593,10 @@ export class GameScene implements Scene {
     this.showDragonWarning();
     this.dragon.flyAcrossScreen(() => {
       this.hideDragonWarning();
-      // Show stolen message after dragon finishes
-      if (this.pendingStolenCount > 0) {
-        this.showStolenMessage(this.pendingStolenCount);
-        this.pendingStolenCount = 0;
+      // Actually steal gems AFTER animation completes (so player sees count go down)
+      const stealResult = this.dragonEvent.stealFromCollection();
+      if (stealResult.totalStolen > 0) {
+        this.showStolenMessage(stealResult.totalStolen);
       }
     });
   }

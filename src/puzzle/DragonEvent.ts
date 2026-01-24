@@ -24,11 +24,7 @@ export class DragonEvent {
         this.addToCollection(gem.type);
       }
     });
-
-    eventBus.on('dragonEvent', () => {
-      const stealResult = this.stealFromCollection();
-      eventBus.emit('dragonStole', stealResult);
-    });
+    // Note: Dragon stealing is now triggered by GameScene after animation completes
   }
 
   addToCollection(type: GemType, count: number = 1): void {
