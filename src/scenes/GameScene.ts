@@ -35,7 +35,7 @@ export class GameScene implements Scene {
   // Drag state
   private isDragging: boolean = false;
   private dragStartPos: { row: number; col: number } | null = null;
-  private dragCurrentPos: THREE.Vector2 = new THREE.Vector2();
+  private dragStartScreenPos: THREE.Vector2 = new THREE.Vector2();
 
   // UI elements
   private princessMini: HTMLElement | null = null;
@@ -142,16 +142,7 @@ export class GameScene implements Scene {
         if (gem) {
           this.isDragging = true;
           this.dragStartPos = boardPos;
-          this.dragCurrentPos.set(event.clientX, event.clientY);
-
-          // If we already had a selection, clear it
-          if (this.selectedGem) {
-            this.gemMeshManager.setSelected(this.selectedGem.id, false);
-          }
-
-          // Select this gem
-          this.selectedGem = { ...boardPos, id: gem.id };
-          this.gemMeshManager.setSelected(gem.id, true);
+          this.dragStartScreenPos.set(event.clientX, event.clientY);
         }
       }
     });
@@ -160,8 +151,8 @@ export class GameScene implements Scene {
     canvas.addEventListener('mousemove', (event) => {
       if (!this.isDragging || !this.dragStartPos || this.isProcessing) return;
 
-      const dx = event.clientX - this.dragCurrentPos.x;
-      const dy = event.clientY - this.dragCurrentPos.y;
+      const dx = event.clientX - this.dragStartScreenPos.x;
+      const dy = event.clientY - this.dragStartScreenPos.y;
       const dragThreshold = 25;
 
       // Check if dragged far enough to trigger a swap
@@ -171,15 +162,18 @@ export class GameScene implements Scene {
 
         // Determine drag direction
         if (Math.abs(dx) > Math.abs(dy)) {
-          // Horizontal drag
           targetCol += dx > 0 ? 1 : -1;
         } else {
-          // Vertical drag
           targetRow += dy > 0 ? 1 : -1;
         }
 
-        // Validate target position
+        // Validate target position and attempt swap
         if (this.board.isValidPosition(targetRow, targetCol)) {
+          // Clear any selection first
+          if (this.selectedGem) {
+            this.gemMeshManager.setSelected(this.selectedGem.id, false);
+            this.selectedGem = null;
+          }
           this.trySwap(this.dragStartPos, { row: targetRow, col: targetCol });
         }
 
@@ -189,15 +183,17 @@ export class GameScene implements Scene {
 
     // Mouse up - end drag or handle click
     canvas.addEventListener('mouseup', (event) => {
-      if (this.isProcessing) return;
+      if (this.isProcessing) {
+        this.endDrag();
+        return;
+      }
 
       if (this.isDragging && this.dragStartPos) {
-        // Check if it was just a click (no significant movement)
-        const dx = event.clientX - this.dragCurrentPos.x;
-        const dy = event.clientY - this.dragCurrentPos.y;
+        const dx = event.clientX - this.dragStartScreenPos.x;
+        const dy = event.clientY - this.dragStartScreenPos.y;
 
+        // If movement was small, treat as a click
         if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
-          // It was a click, not a drag
           this.handleClick(this.dragStartPos);
         }
       }
@@ -219,14 +215,7 @@ export class GameScene implements Scene {
         if (gem) {
           this.isDragging = true;
           this.dragStartPos = boardPos;
-          this.dragCurrentPos.set(touch.clientX, touch.clientY);
-
-          if (this.selectedGem) {
-            this.gemMeshManager.setSelected(this.selectedGem.id, false);
-          }
-
-          this.selectedGem = { ...boardPos, id: gem.id };
-          this.gemMeshManager.setSelected(gem.id, true);
+          this.dragStartScreenPos.set(touch.clientX, touch.clientY);
         }
       }
     }, { passive: false });
@@ -236,8 +225,8 @@ export class GameScene implements Scene {
       event.preventDefault();
 
       const touch = event.touches[0];
-      const dx = touch.clientX - this.dragCurrentPos.x;
-      const dy = touch.clientY - this.dragCurrentPos.y;
+      const dx = touch.clientX - this.dragStartScreenPos.x;
+      const dy = touch.clientY - this.dragStartScreenPos.y;
       const dragThreshold = 35;
 
       if (Math.abs(dx) > dragThreshold || Math.abs(dy) > dragThreshold) {
@@ -251,6 +240,10 @@ export class GameScene implements Scene {
         }
 
         if (this.board.isValidPosition(targetRow, targetCol)) {
+          if (this.selectedGem) {
+            this.gemMeshManager.setSelected(this.selectedGem.id, false);
+            this.selectedGem = null;
+          }
           this.trySwap(this.dragStartPos, { row: targetRow, col: targetCol });
         }
 
@@ -258,7 +251,23 @@ export class GameScene implements Scene {
       }
     }, { passive: false });
 
-    canvas.addEventListener('touchend', () => {
+    canvas.addEventListener('touchend', (event) => {
+      if (this.isProcessing) {
+        this.endDrag();
+        return;
+      }
+
+      // Handle tap as click if no significant movement
+      if (this.isDragging && this.dragStartPos) {
+        const touch = event.changedTouches[0];
+        if (touch) {
+          const dx = touch.clientX - this.dragStartScreenPos.x;
+          const dy = touch.clientY - this.dragStartScreenPos.y;
+          if (Math.abs(dx) < 15 && Math.abs(dy) < 15) {
+            this.handleClick(this.dragStartPos);
+          }
+        }
+      }
       this.endDrag();
     });
   }
@@ -276,7 +285,6 @@ export class GameScene implements Scene {
   private getBoardPositionFromMouse(): { row: number; col: number } | null {
     this.raycaster.setFromCamera(this.mouse, this.renderer.getCamera());
 
-    // Create a plane at z=0 for intersection
     const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
     const intersection = new THREE.Vector3();
 
@@ -292,39 +300,40 @@ export class GameScene implements Scene {
     this.dragStartPos = null;
   }
 
-  private handleClick(pos: { row: number; col: number }): void {
-    // If clicking on already selected gem, deselect it
-    if (this.selectedGem &&
-        this.selectedGem.row === pos.row &&
-        this.selectedGem.col === pos.col) {
+  private handleClick(clickedPos: { row: number; col: number }): void {
+    const clickedGem = this.board.getGem(clickedPos.row, clickedPos.col);
+    if (!clickedGem) return;
+
+    // If no gem selected, select the clicked one
+    if (!this.selectedGem) {
+      this.selectedGem = { ...clickedPos, id: clickedGem.id };
+      this.gemMeshManager.setSelected(clickedGem.id, true);
+      return;
+    }
+
+    // If clicking on the already selected gem, deselect it
+    if (this.selectedGem.row === clickedPos.row && this.selectedGem.col === clickedPos.col) {
       this.gemMeshManager.setSelected(this.selectedGem.id, false);
       this.selectedGem = null;
       return;
     }
 
-    // If we have a selected gem, try to swap with clicked position
-    if (this.selectedGem) {
-      if (this.board.areAdjacent(this.selectedGem, pos)) {
-        this.trySwap(this.selectedGem, pos);
-      } else {
-        // Not adjacent - select new gem instead
-        this.gemMeshManager.setSelected(this.selectedGem.id, false);
-        const gem = this.board.getGem(pos.row, pos.col);
-        if (gem) {
-          this.selectedGem = { ...pos, id: gem.id };
-          this.gemMeshManager.setSelected(gem.id, true);
-        }
-      }
+    // If clicking on an adjacent gem, try to swap
+    if (this.board.areAdjacent(this.selectedGem, clickedPos)) {
+      const prevSelected = this.selectedGem;
+      this.gemMeshManager.setSelected(prevSelected.id, false);
+      this.selectedGem = null;
+      this.trySwap(prevSelected, clickedPos);
+      return;
     }
+
+    // Clicking on a non-adjacent gem - switch selection to the new gem
+    this.gemMeshManager.setSelected(this.selectedGem.id, false);
+    this.selectedGem = { ...clickedPos, id: clickedGem.id };
+    this.gemMeshManager.setSelected(clickedGem.id, true);
   }
 
   private async trySwap(pos1: { row: number; col: number }, pos2: { row: number; col: number }): Promise<void> {
-    // Clear selection
-    if (this.selectedGem) {
-      this.gemMeshManager.setSelected(this.selectedGem.id, false);
-      this.selectedGem = null;
-    }
-
     const result = this.controller.trySwap(pos1, pos2);
 
     if (result.success) {
@@ -337,16 +346,10 @@ export class GameScene implements Scene {
       if (gem1) this.gemMeshManager.updateGemPosition(gem1.id, pos1.row, pos1.col);
       if (gem2) this.gemMeshManager.updateGemPosition(gem2.id, pos2.row, pos2.col);
 
-      // Wait for animation
       await this.waitForAnimation();
-
-      // Process cascade
       await this.processCascade();
 
-      // Update dragon meter
       this.updateDragonMeter();
-
-      // Ensure valid moves exist after cascade
       this.ensureValidMovesWithFeedback();
 
       this.isProcessing = false;
@@ -363,9 +366,8 @@ export class GameScene implements Scene {
           const originalPos1 = mesh1.position.clone();
           const originalPos2 = mesh2.position.clone();
 
-          // Shake animation
-          mesh1.position.x += 0.1;
-          mesh2.position.x -= 0.1;
+          mesh1.position.x += 0.15;
+          mesh2.position.x -= 0.15;
 
           setTimeout(() => {
             mesh1.position.copy(originalPos1);
@@ -379,17 +381,14 @@ export class GameScene implements Scene {
   private async processCascade(): Promise<void> {
     const result = this.controller.processCascade();
 
-    // Remove matched gem meshes
     for (const gem of result.collectedGems) {
       this.gemMeshManager.removeGem(gem.id);
     }
 
-    // Update positions after gravity
     for (const gem of this.board.getAllGems()) {
       this.gemMeshManager.updateGemPosition(gem.id, gem.position.row, gem.position.col);
     }
 
-    // Spawn new gems
     for (const gem of this.board.getAllGems()) {
       if (!this.gemMeshManager.getMesh(gem.id)) {
         this.gemMeshManager.spawnGemFromTop(gem);
@@ -398,7 +397,6 @@ export class GameScene implements Scene {
 
     await this.waitForAnimation();
 
-    // Check for more matches from cascade
     const newMatches = this.controller.getMatchFinder().findAllMatches(this.board);
     if (newMatches.length > 0) {
       await this.processCascade();
@@ -406,7 +404,6 @@ export class GameScene implements Scene {
   }
 
   private syncMeshPositions(): void {
-    // Clear and recreate all gem meshes
     this.gemMeshManager.clear();
     for (const gem of this.board.getAllGems()) {
       this.gemMeshManager.addGem(gem);
@@ -458,7 +455,6 @@ export class GameScene implements Scene {
   private showHint(): void {
     if (this.isProcessing) return;
 
-    // Find a valid move
     const hint = this.findValidMove();
     if (hint) {
       this.gemMeshManager.highlightHint(hint.row, hint.col);
@@ -488,21 +484,13 @@ export class GameScene implements Scene {
   }
 
   private createUI(): void {
-    // Add score display (purse)
     this.uiManager.getOverlay().appendChild(this.scoreDisplay.getElement());
     this.uiManager.getOverlay().appendChild(this.scoreDisplay.getComboElement());
     this.scoreDisplay.show();
 
-    // Add mini princess portrait
     this.createPrincessMini();
-
-    // Add dragon meter
     this.createDragonMeter();
-
-    // Add hint button
     this.createHintButton();
-
-    // Add decorative corners
     this.createDecorations();
   }
 
@@ -516,13 +504,11 @@ export class GameScene implements Scene {
 
     this.princessMini.style.background = `linear-gradient(180deg, #${secondaryColor} 0%, #${primaryColor} 100%)`;
 
-    // Create mini SVG portrait
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('viewBox', '0 0 70 85');
     svg.setAttribute('width', '70');
     svg.setAttribute('height', '85');
 
-    // Face
     const face = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
     face.setAttribute('cx', '35');
     face.setAttribute('cy', '45');
@@ -531,7 +517,6 @@ export class GameScene implements Scene {
     face.setAttribute('fill', '#ffe4c4');
     svg.appendChild(face);
 
-    // Hair
     const hair = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
     hair.setAttribute('cx', '35');
     hair.setAttribute('cy', '48');
@@ -540,13 +525,11 @@ export class GameScene implements Scene {
     hair.setAttribute('fill', `#${accentColor}`);
     svg.insertBefore(hair, face);
 
-    // Crown
     const crown = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     crown.setAttribute('d', 'M20 22 L25 12 L30 18 L35 8 L40 18 L45 12 L50 22 Z');
     crown.setAttribute('fill', '#ffd700');
     svg.appendChild(crown);
 
-    // Eyes
     const eyeL = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
     eyeL.setAttribute('cx', '28');
     eyeL.setAttribute('cy', '42');
@@ -563,7 +546,6 @@ export class GameScene implements Scene {
     eyeR.setAttribute('fill', `#${primaryColor}`);
     svg.appendChild(eyeR);
 
-    // Smile
     const smile = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     smile.setAttribute('d', 'M28 55 Q35 62 42 55');
     smile.setAttribute('stroke', '#c97878');
@@ -571,7 +553,6 @@ export class GameScene implements Scene {
     smile.setAttribute('fill', 'none');
     svg.appendChild(smile);
 
-    // Dress
     const dress = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     dress.setAttribute('d', 'M20 70 Q35 65 50 70 L55 90 L15 90 Z');
     dress.setAttribute('fill', `#${primaryColor}`);
@@ -614,7 +595,6 @@ export class GameScene implements Scene {
     this.gameDecorations = document.createElement('div');
     this.gameDecorations.className = 'game-frame';
 
-    // Corner decorations
     const corners = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
     corners.forEach(corner => {
       const decoration = document.createElement('div');
@@ -625,7 +605,6 @@ export class GameScene implements Scene {
       svg.setAttribute('width', '60');
       svg.setAttribute('height', '60');
 
-      // Decorative swirl
       const swirl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       swirl.setAttribute('d', 'M5 5 Q5 30 30 30 Q30 55 55 55');
       swirl.setAttribute('fill', 'none');
@@ -634,7 +613,6 @@ export class GameScene implements Scene {
       swirl.setAttribute('stroke-linecap', 'round');
       svg.appendChild(swirl);
 
-      // Small gem
       const gem = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       gem.setAttribute('cx', '15');
       gem.setAttribute('cy', '15');
@@ -654,14 +632,12 @@ export class GameScene implements Scene {
     this.gemMeshManager.clear();
     this.board.clear();
 
-    // Clear selection state
     if (this.selectedGem) {
       this.selectedGem = null;
     }
     this.isDragging = false;
     this.dragStartPos = null;
 
-    // Remove UI elements
     if (this.princessMini) {
       this.princessMini.remove();
       this.princessMini = null;
