@@ -27,11 +27,11 @@ export class GameState {
     this.scenes.set(state, scene);
   }
 
-  setState(newState: GameStateType): void {
-    if (newState === this.currentState) return;
+  setState(newState: GameStateType, force: boolean = false): void {
+    if (newState === this.currentState && !force) return;
 
     const currentScene = this.scenes.get(this.currentState);
-    if (currentScene) {
+    if (currentScene && newState !== this.currentState) {
       currentScene.exit();
     }
 
@@ -44,6 +44,14 @@ export class GameState {
     }
 
     eventBus.emit('stateChanged', newState, previousState);
+  }
+
+  // Call this to enter the initial scene after registration
+  enterCurrentScene(): void {
+    const scene = this.scenes.get(this.currentState);
+    if (scene) {
+      scene.enter();
+    }
   }
 
   getState(): GameStateType {

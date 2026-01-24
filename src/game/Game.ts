@@ -118,7 +118,8 @@ export class Game {
 
   start(): void {
     console.log('Princess Puzzle Game starting...');
-    this.gameState.setState('menu');
+    // Enter the initial menu scene (state is already 'menu', so we need to force enter)
+    this.gameState.enterCurrentScene();
     this.lastTime = performance.now();
     this.gameLoop();
   }
