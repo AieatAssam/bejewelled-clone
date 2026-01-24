@@ -425,16 +425,23 @@ export class GameScene implements Scene {
     this.gemMeshManager.highlightMatched(gemIdsToRemove);
     await this.delay(400); // Let player see highlighted gems
 
-    // Step 2: Emit particles and animate removal
+    // Step 2: Emit particles, create flying gems, and animate removal
     for (const match of matches) {
       for (const gem of match.gems) {
         const pos = this.gemMeshManager.getFactory().boardToWorld(gem.position.row, gem.position.col);
         const colors = GEM_COLORS[gem.type as keyof typeof GEM_COLORS];
         this.particleSystem.emitCollect(pos, new THREE.Color(colors.glow));
+
+        // Create flying gem animation to purse
+        const screenPos = this.worldToScreen(pos);
+        this.scoreDisplay.createFlyingGem(screenPos.x, screenPos.y, gem.type as GemType);
       }
     }
 
     await this.gemMeshManager.animateRemoval(gemIdsToRemove);
+
+    // Pulse purse with collected gem colors
+    this.scoreDisplay.pulseWithColors(matchedGemTypes);
 
     // Step 3: Actually remove gems from board and mesh manager
     for (const match of matches) {
@@ -545,6 +552,19 @@ export class GameScene implements Scene {
 
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // Convert world position to screen coordinates for flying gem animations
+  private worldToScreen(worldPos: THREE.Vector3): { x: number; y: number } {
+    const camera = this.renderer.getCamera();
+    const vector = worldPos.clone();
+    vector.project(camera);
+
+    const canvas = this.renderer.getRenderer().domElement;
+    const x = (vector.x * 0.5 + 0.5) * canvas.clientWidth;
+    const y = (-vector.y * 0.5 + 0.5) * canvas.clientHeight;
+
+    return { x, y };
   }
 
   private syncMeshPositions(): void {

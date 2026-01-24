@@ -1,4 +1,16 @@
 import { eventBus } from '../utils/EventBus';
+import { GemType, GEM_COLORS } from '../puzzle/Gem';
+
+// Map gem types to their icon representations
+const GEM_ICONS: Record<GemType, string> = {
+  [GemType.Ruby]: '💎',
+  [GemType.Sapphire]: '💠',
+  [GemType.Emerald]: '💚',
+  [GemType.Diamond]: '💎',
+  [GemType.Amethyst]: '🔮',
+  [GemType.GoldBracelet]: '💍',
+  [GemType.PearlEarring]: '⚪',
+};
 
 export class ScoreDisplay {
   private container: HTMLElement;
@@ -7,12 +19,25 @@ export class ScoreDisplay {
   private currentScore: number = 0;
   private displayedScore: number = 0;
   private comboTimeout: number | null = null;
+  private purseDecoGems: HTMLElement[] = [];
 
   constructor() {
     this.container = this.createPurseDisplay();
     this.scoreValueElement = this.container.querySelector('.score-value')!;
     this.comboElement = this.createComboDisplay();
     this.setupEventListeners();
+    this.cachePurseGems();
+  }
+
+  private cachePurseGems(): void {
+    // Cache references to the decorative gem circles on the purse for pulsing
+    const svg = this.container.querySelector('svg');
+    if (svg) {
+      const circles = svg.querySelectorAll('circle[opacity]');
+      circles.forEach(circle => {
+        this.purseDecoGems.push(circle as unknown as HTMLElement);
+      });
+    }
   }
 
   private createPurseDisplay(): HTMLElement {
@@ -214,5 +239,77 @@ export class ScoreDisplay {
 
   hide(): void {
     this.container.classList.add('hidden');
+  }
+
+  // Make the purse pulse with the colors of collected gems
+  pulseWithColors(gemTypes: GemType[]): void {
+    // Add pulse animation class
+    this.container.classList.add('purse-pulse');
+
+    // Create a glow effect with the average color of collected gems
+    const colors = gemTypes.map(type => GEM_COLORS[type]?.primary || 0xffd700);
+    const avgColor = colors.length > 0 ? colors[0] : 0xffd700;
+    const colorHex = '#' + avgColor.toString(16).padStart(6, '0');
+
+    this.container.style.filter = `drop-shadow(0 0 20px ${colorHex}) drop-shadow(0 0 40px ${colorHex})`;
+
+    setTimeout(() => {
+      this.container.classList.remove('purse-pulse');
+      this.container.style.filter = 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))';
+    }, 600);
+  }
+
+  // Get the position of the purse for flying gem animations
+  getPursePosition(): { x: number; y: number } {
+    const rect = this.container.getBoundingClientRect();
+    return {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    };
+  }
+
+  // Create a flying gem that animates from source position to purse
+  createFlyingGem(startX: number, startY: number, gemType: GemType): void {
+    const flyingGem = document.createElement('div');
+    flyingGem.className = 'flying-gem';
+
+    const color = GEM_COLORS[gemType]?.primary || 0xffd700;
+    const colorHex = '#' + color.toString(16).padStart(6, '0');
+
+    flyingGem.style.cssText = `
+      position: fixed;
+      left: ${startX}px;
+      top: ${startY}px;
+      width: 20px;
+      height: 20px;
+      background: radial-gradient(circle at 30% 30%, ${colorHex}, ${colorHex}88);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 1000;
+      box-shadow: 0 0 10px ${colorHex}, 0 0 20px ${colorHex}88;
+    `;
+
+    document.body.appendChild(flyingGem);
+
+    const pursePos = this.getPursePosition();
+    const duration = 400 + Math.random() * 200;
+
+    // Animate to purse
+    flyingGem.animate([
+      {
+        transform: 'translate(-50%, -50%) scale(1)',
+        opacity: 1
+      },
+      {
+        transform: `translate(${pursePos.x - startX - 10}px, ${pursePos.y - startY - 10}px) scale(0.5)`,
+        opacity: 0.8
+      }
+    ], {
+      duration,
+      easing: 'ease-in',
+      fill: 'forwards'
+    }).onfinish = () => {
+      flyingGem.remove();
+    };
   }
 }
