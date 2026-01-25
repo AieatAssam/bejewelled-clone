@@ -13,34 +13,46 @@ function createSharedGeometries(): void {
   if (geometriesCreated) return;
   geometriesCreated = true;
 
-  // Ruby - Faceted octahedron, compact
-  const rubyGeom = new THREE.OctahedronGeometry(GEM_SIZE * 0.9, 0);
-  rubyGeom.scale(1, 1.1, 0.8);
+  // Ruby - Faceted octahedron, compact (toNonIndexed for sharp facets)
+  const rubyBase = new THREE.OctahedronGeometry(GEM_SIZE * 0.9, 0);
+  rubyBase.scale(1, 1.1, 0.8);
+  const rubyGeom = rubyBase.toNonIndexed();
+  rubyGeom.computeVertexNormals();
   sharedGeometries.set(GemType.Ruby, rubyGeom);
 
-  // Sapphire - Round brilliant cut
-  const sapphireGeom = new THREE.IcosahedronGeometry(GEM_SIZE * 0.8, 0);
+  // Sapphire - Round brilliant cut (toNonIndexed for facets)
+  const sapphireBase = new THREE.IcosahedronGeometry(GEM_SIZE * 0.8, 0);
+  const sapphireGeom = sapphireBase.toNonIndexed();
+  sapphireGeom.computeVertexNormals();
   sharedGeometries.set(GemType.Sapphire, sapphireGeom);
 
-  // Emerald - Rectangular step cut (box with bevels)
-  const emeraldGeom = new THREE.BoxGeometry(GEM_SIZE * 1.2, GEM_SIZE * 0.8, GEM_SIZE * 0.6);
+  // Emerald - Rectangular step cut (toNonIndexed for sharp edges)
+  const emeraldBase = new THREE.BoxGeometry(GEM_SIZE * 1.2, GEM_SIZE * 0.8, GEM_SIZE * 0.6);
+  const emeraldGeom = emeraldBase.toNonIndexed();
+  emeraldGeom.computeVertexNormals();
   sharedGeometries.set(GemType.Emerald, emeraldGeom);
 
-  // Diamond - Small brilliant octahedron
-  const diamondGeom = new THREE.OctahedronGeometry(GEM_SIZE * 0.7, 0);
-  diamondGeom.scale(1, 1.1, 1);
+  // Diamond - Brilliant octahedron (toNonIndexed for maximum sparkle)
+  const diamondBase = new THREE.OctahedronGeometry(GEM_SIZE * 0.7, 0);
+  diamondBase.scale(1, 1.1, 1);
+  const diamondGeom = diamondBase.toNonIndexed();
+  diamondGeom.computeVertexNormals();
   sharedGeometries.set(GemType.Diamond, diamondGeom);
 
-  // Amethyst - Dodecahedron crystal
-  const amethystGeom = new THREE.DodecahedronGeometry(GEM_SIZE * 0.75, 0);
+  // Amethyst - Dodecahedron crystal (toNonIndexed for facets)
+  const amethystBase = new THREE.DodecahedronGeometry(GEM_SIZE * 0.75, 0);
+  const amethystGeom = amethystBase.toNonIndexed();
+  amethystGeom.computeVertexNormals();
   sharedGeometries.set(GemType.Amethyst, amethystGeom);
 
-  // Gold Bracelet - Simple torus ring
-  const braceletGeom = new THREE.TorusGeometry(GEM_SIZE * 0.5, GEM_SIZE * 0.2, 8, 16);
+  // Gold Bracelet - Torus ring (toNonIndexed for faceted gold)
+  const braceletBase = new THREE.TorusGeometry(GEM_SIZE * 0.5, GEM_SIZE * 0.2, 8, 16);
+  const braceletGeom = braceletBase.toNonIndexed();
+  braceletGeom.computeVertexNormals();
   sharedGeometries.set(GemType.GoldBracelet, braceletGeom);
 
-  // Pearl Earring - Small smooth sphere
-  const pearlGeom = new THREE.SphereGeometry(GEM_SIZE * 0.55, 16, 12);
+  // Pearl Earring - Smooth sphere (keep smooth for pearl luster)
+  const pearlGeom = new THREE.SphereGeometry(GEM_SIZE * 0.55, 24, 16);
   sharedGeometries.set(GemType.PearlEarring, pearlGeom);
 }
 
@@ -61,112 +73,114 @@ export class GemMeshFactory {
     const group = new THREE.Group();
     const geometry = sharedGeometries.get(gem.type)!;
 
-    // Create gem materials with transparency for realistic gem appearance
+    // Create gem materials using transmission with attenuation for realistic colored glass
     let material: THREE.MeshPhysicalMaterial;
+    const thickness = GEM_SIZE * 1.5; // Scale thickness to gem size
 
     if (gem.type === GemType.Diamond) {
-      // Diamond - brilliant clear with blue fire
+      // Diamond - brilliant clear with sparkle
       material = new THREE.MeshPhysicalMaterial({
-        color: 0xeeffff,
+        color: 0xffffff,
         metalness: 0.0,
         roughness: 0.0,
-        transmission: 0.9,        // High transparency
-        thickness: 0.5,           // Refraction depth
-        ior: 2.4,                 // Diamond's index of refraction
-        emissive: 0x4488ff,
-        emissiveIntensity: 0.15,
-        envMapIntensity: 2.0,
+        transmission: 1.0,
+        thickness: thickness,
+        ior: 2.42,
+        attenuationColor: new THREE.Color(0xeef8ff),
+        attenuationDistance: 0.8,
+        envMapIntensity: 3.5,
         clearcoat: 1.0,
         clearcoatRoughness: 0.0,
+        specularIntensity: 1.0,
       });
     } else if (gem.type === GemType.GoldBracelet) {
       // Gold - rich luxurious metallic (no transparency)
       material = new THREE.MeshPhysicalMaterial({
-        color: 0xffcc33,
-        metalness: 0.95,
-        roughness: 0.1,
-        emissive: 0xcc9900,
-        emissiveIntensity: 0.25,
-        envMapIntensity: 1.5,
-        clearcoat: 0.8,
+        color: 0xffd700,
+        metalness: 1.0,
+        roughness: 0.15,
+        envMapIntensity: 2.5,
+        clearcoat: 0.5,
         clearcoatRoughness: 0.1,
       });
     } else if (gem.type === GemType.PearlEarring) {
-      // Pearl - lustrous iridescent (slight translucency)
+      // Pearl - lustrous iridescent
       material = new THREE.MeshPhysicalMaterial({
-        color: 0xfff8f0,
+        color: 0xfff5ee,
         metalness: 0.0,
-        roughness: 0.15,
-        transmission: 0.1,
-        thickness: 0.3,
-        emissive: 0xffeedd,
-        emissiveIntensity: 0.1,
-        envMapIntensity: 1.0,
+        roughness: 0.2,
+        envMapIntensity: 2.0,
         clearcoat: 1.0,
-        clearcoatRoughness: 0.2,
+        clearcoatRoughness: 0.1,
         sheen: 1.0,
-        sheenColor: new THREE.Color(0xffddcc),
-        sheenRoughness: 0.3,
+        sheenColor: new THREE.Color(0xffeeff),
+        sheenRoughness: 0.2,
+        iridescence: 0.5,
+        iridescenceIOR: 1.3,
       });
     } else if (gem.type === GemType.Ruby) {
       // Ruby - deep red with inner fire
       material = new THREE.MeshPhysicalMaterial({
-        color: 0xee2244,
+        color: 0xffffff,
         metalness: 0.0,
         roughness: 0.0,
-        transmission: 0.6,
-        thickness: 0.8,
-        ior: 1.77,                // Ruby's IOR
-        emissive: 0xcc1133,
-        emissiveIntensity: 0.35,
-        envMapIntensity: 1.5,
+        transmission: 1.0,
+        thickness: thickness,
+        ior: 1.77,
+        attenuationColor: new THREE.Color(0xff1133),
+        attenuationDistance: 0.3,
+        envMapIntensity: 3.0,
         clearcoat: 1.0,
         clearcoatRoughness: 0.0,
+        specularIntensity: 1.0,
       });
     } else if (gem.type === GemType.Sapphire) {
-      // Sapphire - deep blue transparency
+      // Sapphire - deep royal blue
       material = new THREE.MeshPhysicalMaterial({
-        color: 0x3355dd,
+        color: 0xffffff,
         metalness: 0.0,
         roughness: 0.0,
-        transmission: 0.6,
-        thickness: 0.8,
-        ior: 1.77,                // Sapphire's IOR
-        emissive: 0x2244bb,
-        emissiveIntensity: 0.3,
-        envMapIntensity: 1.5,
+        transmission: 1.0,
+        thickness: thickness,
+        ior: 1.77,
+        attenuationColor: new THREE.Color(0x2244dd),
+        attenuationDistance: 0.3,
+        envMapIntensity: 3.0,
         clearcoat: 1.0,
         clearcoatRoughness: 0.0,
+        specularIntensity: 1.0,
       });
     } else if (gem.type === GemType.Emerald) {
-      // Emerald - rich green with depth
+      // Emerald - rich green
       material = new THREE.MeshPhysicalMaterial({
-        color: 0x33cc66,
+        color: 0xffffff,
         metalness: 0.0,
         roughness: 0.0,
-        transmission: 0.65,
-        thickness: 0.7,
-        ior: 1.58,                // Emerald's IOR
-        emissive: 0x22aa55,
-        emissiveIntensity: 0.3,
-        envMapIntensity: 1.5,
+        transmission: 1.0,
+        thickness: thickness,
+        ior: 1.58,
+        attenuationColor: new THREE.Color(0x00cc55),
+        attenuationDistance: 0.25,
+        envMapIntensity: 3.0,
         clearcoat: 1.0,
         clearcoatRoughness: 0.0,
+        specularIntensity: 1.0,
       });
     } else {
-      // Amethyst - royal purple with clarity
+      // Amethyst - royal purple
       material = new THREE.MeshPhysicalMaterial({
-        color: 0xaa44dd,
+        color: 0xffffff,
         metalness: 0.0,
         roughness: 0.0,
-        transmission: 0.6,
-        thickness: 0.8,
-        ior: 1.54,                // Quartz IOR
-        emissive: 0x8833bb,
-        emissiveIntensity: 0.3,
-        envMapIntensity: 1.5,
+        transmission: 1.0,
+        thickness: thickness,
+        ior: 1.54,
+        attenuationColor: new THREE.Color(0x9933ff),
+        attenuationDistance: 0.3,
+        envMapIntensity: 3.0,
         clearcoat: 1.0,
         clearcoatRoughness: 0.0,
+        specularIntensity: 1.0,
       });
     }
 

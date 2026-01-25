@@ -9,7 +9,7 @@ export class Renderer3D {
   private directionalLight: THREE.DirectionalLight;
   private pointLights: THREE.PointLight[] = [];
   private hemisphereLight: THREE.HemisphereLight;
-  private envMap: THREE.CubeTexture | null = null;
+  private envMap: THREE.Texture | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene();
@@ -40,7 +40,7 @@ export class Renderer3D {
     this.renderer.shadowMap.enabled = false; // Disable shadows for performance
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.0;
+    this.renderer.toneMappingExposure = 1.2; // Brighter for gem sparkle
 
     // Hemisphere light for soft ambient lighting
     this.hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x443366, 0.5);
@@ -84,55 +84,81 @@ export class Renderer3D {
   }
 
   private createEnvironmentMap(): void {
-    // Create a procedural environment map for gem reflections
-    const size = 128;
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d')!;
+    // Create HDR-like environment using PMREMGenerator for proper gem reflections
+    const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+    pmremGenerator.compileEquirectangularShader();
 
-    // Create gradient for each face
-    const faces: HTMLCanvasElement[] = [];
-    const faceColors = [
-      ['#4a1a6b', '#2d1b4e', '#1a0a2e'], // Right - purple gradient
-      ['#4a1a6b', '#2d1b4e', '#1a0a2e'], // Left
-      ['#ffd700', '#ffaa00', '#ff8800'], // Top - golden
-      ['#1a0a2e', '#0d0518', '#000000'], // Bottom - dark
-      ['#ff69b4', '#9966ff', '#4488ff'], // Front - colorful
-      ['#9966ff', '#4488ff', '#44ddff'], // Back - colorful
-    ];
+    // Create a bright, colorful environment scene for gem reflections
+    const envScene = new THREE.Scene();
 
-    faceColors.forEach((colors) => {
-      const faceCanvas = document.createElement('canvas');
-      faceCanvas.width = size;
-      faceCanvas.height = size;
-      const faceCtx = faceCanvas.getContext('2d')!;
-
-      const gradient = faceCtx.createLinearGradient(0, 0, size, size);
-      gradient.addColorStop(0, colors[0]);
-      gradient.addColorStop(0.5, colors[1]);
-      gradient.addColorStop(1, colors[2]);
-      faceCtx.fillStyle = gradient;
-      faceCtx.fillRect(0, 0, size, size);
-
-      // Add some sparkle dots
-      faceCtx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-      for (let i = 0; i < 20; i++) {
-        const x = Math.random() * size;
-        const y = Math.random() * size;
-        const r = Math.random() * 2 + 0.5;
-        faceCtx.beginPath();
-        faceCtx.arc(x, y, r, 0, Math.PI * 2);
-        faceCtx.fill();
-      }
-
-      faces.push(faceCanvas);
+    // Gradient sky dome
+    const skyGeom = new THREE.SphereGeometry(50, 32, 32);
+    const skyMat = new THREE.MeshBasicMaterial({
+      side: THREE.BackSide,
     });
 
-    const cubeTexture = new THREE.CubeTexture(faces);
-    cubeTexture.needsUpdate = true;
-    this.envMap = cubeTexture;
-    this.scene.environment = cubeTexture;
+    // Create gradient texture for sky
+    const skyCanvas = document.createElement('canvas');
+    skyCanvas.width = 512;
+    skyCanvas.height = 512;
+    const ctx = skyCanvas.getContext('2d')!;
+
+    // Vibrant gradient for gem reflections
+    const gradient = ctx.createLinearGradient(0, 0, 0, 512);
+    gradient.addColorStop(0, '#ffddaa');    // Warm top (golden light)
+    gradient.addColorStop(0.2, '#ffffff');   // Bright white
+    gradient.addColorStop(0.4, '#aaddff');   // Light blue
+    gradient.addColorStop(0.6, '#ff99cc');   // Pink
+    gradient.addColorStop(0.8, '#9966ff');   // Purple
+    gradient.addColorStop(1, '#2d1b4e');     // Dark bottom
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 512, 512);
+
+    // Add bright spots for sparkle reflections
+    ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < 50; i++) {
+      const x = Math.random() * 512;
+      const y = Math.random() * 256; // More in upper half
+      const r = Math.random() * 8 + 2;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const skyTexture = new THREE.CanvasTexture(skyCanvas);
+    skyMat.map = skyTexture;
+    const sky = new THREE.Mesh(skyGeom, skyMat);
+    envScene.add(sky);
+
+    // Add bright light sources in the environment for sparkle
+    const lightPositions = [
+      { pos: [10, 10, 10], color: 0xffffff, intensity: 3 },
+      { pos: [-10, 8, 5], color: 0xffffee, intensity: 2 },
+      { pos: [5, -5, 10], color: 0xffeeff, intensity: 2 },
+      { pos: [-5, 10, -5], color: 0xeeffff, intensity: 1.5 },
+    ];
+
+    lightPositions.forEach(({ pos, color, intensity }) => {
+      const lightGeom = new THREE.SphereGeometry(1, 8, 8);
+      const lightMat = new THREE.MeshBasicMaterial({
+        color: color,
+      });
+      const light = new THREE.Mesh(lightGeom, lightMat);
+      light.position.set(pos[0], pos[1], pos[2]);
+      light.scale.setScalar(intensity);
+      envScene.add(light);
+    });
+
+    // Generate PMREM from the environment scene
+    const envMap = pmremGenerator.fromScene(envScene, 0.04).texture;
+    this.envMap = envMap;
+    this.scene.environment = envMap;
+
+    // Cleanup
+    pmremGenerator.dispose();
+    skyGeom.dispose();
+    skyMat.dispose();
+    skyTexture.dispose();
   }
 
   private setupResizeHandler(): void {
