@@ -65,14 +65,18 @@ export class Renderer3D {
   }
 
   private setupPointLights(): void {
-    // Subtle accent lights
+    // Enhanced lighting for sparkly gem appearance
     const lightConfig = [
-      { color: 0xffffff, pos: [0, 0, 8], intensity: 0.3 },   // Front fill
-      { color: 0xffd700, pos: [5, 5, 5], intensity: 0.2 },   // Warm accent
+      { color: 0xffffff, pos: [0, 0, 10], intensity: 0.5 },   // Front fill - brighter
+      { color: 0xffd700, pos: [6, 4, 6], intensity: 0.4 },    // Warm gold accent (top right)
+      { color: 0xff69b4, pos: [-6, 4, 6], intensity: 0.3 },   // Pink accent (top left)
+      { color: 0x4488ff, pos: [0, -5, 8], intensity: 0.3 },   // Cool blue from bottom
+      { color: 0xffffff, pos: [4, -2, 7], intensity: 0.25 },  // Extra sparkle right
+      { color: 0xffffff, pos: [-4, -2, 7], intensity: 0.25 }, // Extra sparkle left
     ];
 
     lightConfig.forEach(({ color, pos, intensity }) => {
-      const light = new THREE.PointLight(color, intensity, 20);
+      const light = new THREE.PointLight(color, intensity, 25);
       light.position.set(pos[0], pos[1], pos[2]);
       this.pointLights.push(light);
       this.scene.add(light);

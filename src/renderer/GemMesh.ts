@@ -61,71 +61,78 @@ export class GemMeshFactory {
     const group = new THREE.Group();
     const geometry = sharedGeometries.get(gem.type)!;
 
-    // Create rich, saturated gem materials
+    // Create rich, vibrant gem materials with enhanced sparkle
     let material: THREE.MeshStandardMaterial;
 
     if (gem.type === GemType.Diamond) {
-      // Diamond - sparkling clear with subtle blue tint
+      // Diamond - brilliant sparkling clear
       material = new THREE.MeshStandardMaterial({
-        color: 0xaaeeff,
-        metalness: 0.1,
+        color: 0xccf4ff,
+        metalness: 0.2,
         roughness: 0.0,
-        emissive: 0x4488cc,
-        emissiveIntensity: 0.15,
+        emissive: 0x88ccff,
+        emissiveIntensity: 0.25,
+        envMapIntensity: 1.5,
       });
     } else if (gem.type === GemType.GoldBracelet) {
-      // Gold - rich metallic yellow
+      // Gold - rich luxurious metallic
       material = new THREE.MeshStandardMaterial({
-        color: 0xffaa00,
-        metalness: 0.9,
-        roughness: 0.2,
-        emissive: 0x996600,
-        emissiveIntensity: 0.2,
+        color: 0xffbb22,
+        metalness: 0.95,
+        roughness: 0.15,
+        emissive: 0xbb8800,
+        emissiveIntensity: 0.3,
+        envMapIntensity: 1.2,
       });
     } else if (gem.type === GemType.PearlEarring) {
-      // Pearl - creamy white with pink tint
+      // Pearl - lustrous iridescent white
       material = new THREE.MeshStandardMaterial({
-        color: 0xfff0e8,
-        metalness: 0.2,
-        roughness: 0.3,
-        emissive: 0xffddcc,
-        emissiveIntensity: 0.1,
+        color: 0xfff8f0,
+        metalness: 0.3,
+        roughness: 0.2,
+        emissive: 0xffeedd,
+        emissiveIntensity: 0.15,
+        envMapIntensity: 1.0,
       });
     } else if (gem.type === GemType.Ruby) {
-      // Ruby - DEEP rich red
+      // Ruby - fiery deep red
       material = new THREE.MeshStandardMaterial({
-        color: 0xcc0022,
-        metalness: 0.1,
-        roughness: 0.05,
-        emissive: 0x660011,
-        emissiveIntensity: 0.3,
+        color: 0xdd1133,
+        metalness: 0.15,
+        roughness: 0.02,
+        emissive: 0x991122,
+        emissiveIntensity: 0.4,
+        envMapIntensity: 1.3,
       });
     } else if (gem.type === GemType.Sapphire) {
-      // Sapphire - DEEP royal blue
+      // Sapphire - deep royal blue
       material = new THREE.MeshStandardMaterial({
-        color: 0x1133aa,
-        metalness: 0.1,
-        roughness: 0.05,
-        emissive: 0x0a1a55,
-        emissiveIntensity: 0.3,
+        color: 0x2244cc,
+        metalness: 0.15,
+        roughness: 0.02,
+        emissive: 0x1133aa,
+        emissiveIntensity: 0.4,
+        envMapIntensity: 1.3,
       });
     } else if (gem.type === GemType.Emerald) {
-      // Emerald - DEEP rich green
+      // Emerald - vivid rich green
       material = new THREE.MeshStandardMaterial({
-        color: 0x118844,
-        metalness: 0.1,
-        roughness: 0.1,
-        emissive: 0x084422,
-        emissiveIntensity: 0.25,
+        color: 0x22aa55,
+        metalness: 0.15,
+        roughness: 0.05,
+        emissive: 0x118844,
+        emissiveIntensity: 0.35,
+        envMapIntensity: 1.3,
       });
     } else {
-      // Amethyst - DEEP purple
+      // Amethyst - royal purple
       material = new THREE.MeshStandardMaterial({
-        color: 0x7722aa,
-        metalness: 0.1,
-        roughness: 0.05,
-        emissive: 0x3a1155,
-        emissiveIntensity: 0.3,
+        color: 0x9933cc,
+        metalness: 0.15,
+        roughness: 0.02,
+        emissive: 0x6622aa,
+        emissiveIntensity: 0.4,
+        envMapIntensity: 1.3,
       });
     }
 
@@ -139,18 +146,67 @@ export class GemMeshFactory {
 
     group.add(mainMesh);
 
-    // Add single bright highlight sparkle
+    // Add multiple sparkle highlights for extra brilliance
     if (gem.type !== GemType.PearlEarring && gem.type !== GemType.GoldBracelet) {
+      // Main highlight
       const highlightGeom = new THREE.SphereGeometry(GEM_SIZE * 0.1, 8, 6);
       const highlightMat = new THREE.MeshBasicMaterial({
         color: 0xffffff,
         transparent: true,
-        opacity: 0.85,
+        opacity: 0.9,
       });
       const highlight = new THREE.Mesh(highlightGeom, highlightMat);
-      highlight.position.set(GEM_SIZE * 0.15, GEM_SIZE * 0.25, GEM_SIZE * 0.2);
+      highlight.position.set(GEM_SIZE * 0.15, GEM_SIZE * 0.25, GEM_SIZE * 0.25);
       highlight.name = 'highlight';
       group.add(highlight);
+
+      // Secondary smaller sparkle
+      const sparkle2Geom = new THREE.SphereGeometry(GEM_SIZE * 0.06, 6, 4);
+      const sparkle2Mat = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.7,
+      });
+      const sparkle2 = new THREE.Mesh(sparkle2Geom, sparkle2Mat);
+      sparkle2.position.set(-GEM_SIZE * 0.1, GEM_SIZE * 0.15, GEM_SIZE * 0.2);
+      sparkle2.name = 'highlight2';
+      group.add(sparkle2);
+
+      // Tiny accent sparkle
+      const sparkle3Geom = new THREE.SphereGeometry(GEM_SIZE * 0.04, 6, 4);
+      const sparkle3Mat = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.6,
+      });
+      const sparkle3 = new THREE.Mesh(sparkle3Geom, sparkle3Mat);
+      sparkle3.position.set(GEM_SIZE * 0.05, -GEM_SIZE * 0.1, GEM_SIZE * 0.22);
+      sparkle3.name = 'highlight3';
+      group.add(sparkle3);
+    } else if (gem.type === GemType.PearlEarring) {
+      // Pearl gets a soft luster highlight
+      const pearlHighlightGeom = new THREE.SphereGeometry(GEM_SIZE * 0.12, 8, 6);
+      const pearlHighlightMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.5,
+      });
+      const pearlHighlight = new THREE.Mesh(pearlHighlightGeom, pearlHighlightMat);
+      pearlHighlight.position.set(GEM_SIZE * 0.12, GEM_SIZE * 0.15, GEM_SIZE * 0.2);
+      pearlHighlight.name = 'highlight';
+      group.add(pearlHighlight);
+    } else if (gem.type === GemType.GoldBracelet) {
+      // Gold gets a metallic shine highlight
+      const goldHighlightGeom = new THREE.SphereGeometry(GEM_SIZE * 0.08, 8, 6);
+      const goldHighlightMat = new THREE.MeshBasicMaterial({
+        color: 0xffffcc,
+        transparent: true,
+        opacity: 0.7,
+      });
+      const goldHighlight = new THREE.Mesh(goldHighlightGeom, goldHighlightMat);
+      goldHighlight.position.set(GEM_SIZE * 0.2, GEM_SIZE * 0.1, GEM_SIZE * 0.15);
+      goldHighlight.name = 'highlight';
+      group.add(goldHighlight);
     }
 
     // Selection ring (hidden by default)
@@ -167,92 +223,105 @@ export class GemMeshFactory {
     ring.name = 'ring';
     group.add(ring);
 
-    // Add powerup indicators (no rings, just the decoration)
+    // Add powerup indicators - floating bands ABOVE the gem (no clipping)
     if (gem.powerup === PowerupType.Star) {
-      // Star gem - add golden star overlay
-      const starShape = new THREE.Shape();
-      const outerRadius = GEM_SIZE * 0.55;
-      const innerRadius = GEM_SIZE * 0.22;
-      const points = 5;
+      // Star gem - sparkling golden band floating above
+      const bandGroup = new THREE.Group();
+      bandGroup.position.y = GEM_SIZE * 0.7; // Float above the gem
+      bandGroup.name = 'powerup-star-band';
 
-      for (let i = 0; i < points * 2; i++) {
-        const radius = i % 2 === 0 ? outerRadius : innerRadius;
-        const angle = (i * Math.PI) / points - Math.PI / 2;
-        const x = Math.cos(angle) * radius;
-        const y = Math.sin(angle) * radius;
-        if (i === 0) {
-          starShape.moveTo(x, y);
-        } else {
-          starShape.lineTo(x, y);
-        }
-      }
-      starShape.closePath();
-
-      const starGeom = new THREE.ShapeGeometry(starShape);
-      const starMat = new THREE.MeshBasicMaterial({
+      // Create curved band using a partial torus (arc shape)
+      const bandGeom = new THREE.TorusGeometry(GEM_SIZE * 0.5, 0.04, 8, 32, Math.PI * 1.5);
+      const bandMat = new THREE.MeshBasicMaterial({
         color: 0xffd700,
         transparent: true,
-        opacity: 0.95,
-        side: THREE.DoubleSide,
+        opacity: 0.9,
       });
-      const starMesh = new THREE.Mesh(starGeom, starMat);
-      starMesh.position.z = GEM_SIZE * 0.5;
-      starMesh.name = 'powerup-star';
-      group.add(starMesh);
+      const band = new THREE.Mesh(bandGeom, bandMat);
+      band.rotation.x = Math.PI / 2;
+      band.name = 'star-band-main';
+      bandGroup.add(band);
 
-      // Small sparkle dots around the star (instead of ring)
-      const sparklePositions = [
-        { x: 0.4, y: 0.4 }, { x: -0.4, y: 0.4 },
-        { x: 0.4, y: -0.4 }, { x: -0.4, y: -0.4 },
-      ];
-      sparklePositions.forEach((pos, i) => {
-        const sparkleGeom = new THREE.CircleGeometry(GEM_SIZE * 0.08, 6);
-        const sparkleMat = new THREE.MeshBasicMaterial({
-          color: 0xffffaa,
+      // Add sparkle stars along the band
+      for (let i = 0; i < 5; i++) {
+        const angle = (i / 5) * Math.PI * 1.5 - Math.PI * 0.75;
+        const starShape = new THREE.Shape();
+        const outerR = 0.06;
+        const innerR = 0.025;
+
+        for (let j = 0; j < 10; j++) {
+          const r = j % 2 === 0 ? outerR : innerR;
+          const a = (j * Math.PI) / 5 - Math.PI / 2;
+          const x = Math.cos(a) * r;
+          const y = Math.sin(a) * r;
+          if (j === 0) starShape.moveTo(x, y);
+          else starShape.lineTo(x, y);
+        }
+        starShape.closePath();
+
+        const miniStarGeom = new THREE.ShapeGeometry(starShape);
+        const miniStarMat = new THREE.MeshBasicMaterial({
+          color: 0xffffcc,
           transparent: true,
-          opacity: 0.8,
+          opacity: 0.95,
+          side: THREE.DoubleSide,
         });
-        const sparkle = new THREE.Mesh(sparkleGeom, sparkleMat);
-        sparkle.position.set(pos.x * GEM_SIZE, pos.y * GEM_SIZE, GEM_SIZE * 0.52);
-        sparkle.name = `powerup-star-sparkle-${i}`;
-        group.add(sparkle);
-      });
+        const miniStar = new THREE.Mesh(miniStarGeom, miniStarMat);
+        miniStar.position.set(
+          Math.cos(angle) * GEM_SIZE * 0.5,
+          0.05,
+          Math.sin(angle) * GEM_SIZE * 0.5
+        );
+        miniStar.rotation.x = -Math.PI / 2;
+        miniStar.name = `star-sparkle-${i}`;
+        bandGroup.add(miniStar);
+      }
+
+      group.add(bandGroup);
     } else if (gem.powerup === PowerupType.Rainbow) {
-      // Rainbow gem - colorful arc/swirl decoration (no rings)
-      const rainbowColors = [0xff0000, 0xff8800, 0xffff00, 0x00ff00, 0x0088ff, 0x8800ff];
+      // Rainbow gem - colorful rainbow arc floating above
+      const bandGroup = new THREE.Group();
+      bandGroup.position.y = GEM_SIZE * 0.7; // Float above the gem
+      bandGroup.name = 'powerup-rainbow-band';
 
-      // Create small colored dots in a circular pattern
+      // Create rainbow bands (multiple arcs stacked)
+      const rainbowColors = [0xff0000, 0xff8800, 0xffff00, 0x00dd44, 0x0088ff, 0x8844ff];
+
       rainbowColors.forEach((color, i) => {
-        const angle = (i / rainbowColors.length) * Math.PI * 2 - Math.PI / 2;
-        const radius = GEM_SIZE * 0.5;
-
-        const dotGeom = new THREE.CircleGeometry(GEM_SIZE * 0.12, 8);
-        const dotMat = new THREE.MeshBasicMaterial({
+        const radius = GEM_SIZE * 0.4 + i * 0.035;
+        const arcGeom = new THREE.TorusGeometry(radius, 0.025, 6, 24, Math.PI);
+        const arcMat = new THREE.MeshBasicMaterial({
           color: color,
           transparent: true,
           opacity: 0.9,
         });
-        const dot = new THREE.Mesh(dotGeom, dotMat);
-        dot.position.set(
-          Math.cos(angle) * radius,
-          Math.sin(angle) * radius,
-          GEM_SIZE * 0.5
-        );
-        dot.name = `powerup-rainbow-dot-${i}`;
-        group.add(dot);
+        const arc = new THREE.Mesh(arcGeom, arcMat);
+        arc.rotation.x = Math.PI / 2;
+        arc.rotation.z = Math.PI; // Flip to arch upward
+        arc.position.y = 0.02 + i * 0.01;
+        arc.name = `rainbow-arc-${i}`;
+        bandGroup.add(arc);
       });
 
-      // Add central white shimmer
-      const shimmerGeom = new THREE.CircleGeometry(GEM_SIZE * 0.2, 12);
-      const shimmerMat = new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        transparent: true,
-        opacity: 0.7,
+      // Add shimmer particles at the ends
+      const shimmerPositions = [
+        { x: -GEM_SIZE * 0.55, z: 0 },
+        { x: GEM_SIZE * 0.55, z: 0 },
+      ];
+      shimmerPositions.forEach((pos, i) => {
+        const shimmerGeom = new THREE.SphereGeometry(0.05, 8, 6);
+        const shimmerMat = new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.8,
+        });
+        const shimmer = new THREE.Mesh(shimmerGeom, shimmerMat);
+        shimmer.position.set(pos.x, 0, pos.z);
+        shimmer.name = `rainbow-shimmer-${i}`;
+        bandGroup.add(shimmer);
       });
-      const shimmer = new THREE.Mesh(shimmerGeom, shimmerMat);
-      shimmer.position.z = GEM_SIZE * 0.51;
-      shimmer.name = 'powerup-rainbow-shimmer';
-      group.add(shimmer);
+
+      group.add(bandGroup);
     }
 
     const position = this.boardToWorld(gem.position.row, gem.position.col);
@@ -436,50 +505,75 @@ export class GemMeshManager {
         }
       }
 
-      // Highlight shimmer
+      // Highlight shimmer - multiple sparkles
       const highlight = mesh.getObjectByName('highlight') as THREE.Mesh;
       if (highlight) {
-        const shimmer = 0.4 + Math.sin(this.time * 2 + phase) * 0.3;
+        const shimmer = 0.5 + Math.sin(this.time * 2.5 + phase) * 0.4;
         (highlight.material as THREE.MeshBasicMaterial).opacity = shimmer;
       }
 
-      // Powerup animations
-      const starMesh = mesh.getObjectByName('powerup-star') as THREE.Mesh;
-      if (starMesh) {
-        // Star rotates slowly and pulses
-        starMesh.rotation.z = this.time * 1.2;
-        const starPulse = 1 + Math.sin(this.time * 3) * 0.1;
-        starMesh.scale.setScalar(starPulse);
+      const highlight2 = mesh.getObjectByName('highlight2') as THREE.Mesh;
+      if (highlight2) {
+        const shimmer2 = 0.4 + Math.sin(this.time * 3 + phase + 1) * 0.35;
+        (highlight2.material as THREE.MeshBasicMaterial).opacity = shimmer2;
       }
 
-      // Star sparkles twinkle
-      for (let i = 0; i < 4; i++) {
-        const sparkle = mesh.getObjectByName(`powerup-star-sparkle-${i}`) as THREE.Mesh;
-        if (sparkle) {
-          const twinkle = 0.5 + Math.sin(this.time * 4 + i * 1.5) * 0.5;
-          (sparkle.material as THREE.MeshBasicMaterial).opacity = twinkle;
-          sparkle.scale.setScalar(0.8 + twinkle * 0.4);
+      const highlight3 = mesh.getObjectByName('highlight3') as THREE.Mesh;
+      if (highlight3) {
+        const shimmer3 = 0.3 + Math.sin(this.time * 4 + phase + 2) * 0.35;
+        (highlight3.material as THREE.MeshBasicMaterial).opacity = shimmer3;
+      }
+
+      // Powerup animations - floating bands above gems
+      const starBand = mesh.getObjectByName('powerup-star-band') as THREE.Group;
+      if (starBand) {
+        // Band rotates and bobs gently
+        starBand.rotation.y = this.time * 1.5;
+        starBand.position.y = GEM_SIZE * 0.7 + Math.sin(this.time * 2) * 0.03;
+
+        // Main band pulses
+        const mainBand = starBand.getObjectByName('star-band-main') as THREE.Mesh;
+        if (mainBand) {
+          (mainBand.material as THREE.MeshBasicMaterial).opacity = 0.7 + Math.sin(this.time * 3) * 0.3;
+        }
+
+        // Sparkle stars twinkle
+        for (let i = 0; i < 5; i++) {
+          const sparkle = starBand.getObjectByName(`star-sparkle-${i}`) as THREE.Mesh;
+          if (sparkle) {
+            const twinkle = 0.6 + Math.sin(this.time * 5 + i * 1.2) * 0.4;
+            (sparkle.material as THREE.MeshBasicMaterial).opacity = twinkle;
+            sparkle.rotation.z = this.time * 2 + i;
+            const scale = 0.8 + Math.sin(this.time * 4 + i * 0.8) * 0.3;
+            sparkle.scale.setScalar(scale);
+          }
         }
       }
 
-      // Rainbow dots orbit slowly
-      for (let i = 0; i < 6; i++) {
-        const dot = mesh.getObjectByName(`powerup-rainbow-dot-${i}`) as THREE.Mesh;
-        if (dot) {
-          const baseAngle = (i / 6) * Math.PI * 2 - Math.PI / 2;
-          const orbitAngle = baseAngle + this.time * 0.8;
-          const radius = GEM_SIZE * 0.5;
-          dot.position.x = Math.cos(orbitAngle) * radius;
-          dot.position.y = Math.sin(orbitAngle) * radius;
-          (dot.material as THREE.MeshBasicMaterial).opacity = 0.7 + Math.sin(this.time * 3 + i) * 0.3;
-        }
-      }
+      const rainbowBand = mesh.getObjectByName('powerup-rainbow-band') as THREE.Group;
+      if (rainbowBand) {
+        // Rainbow band rotates and bobs
+        rainbowBand.rotation.y = this.time * 0.8;
+        rainbowBand.position.y = GEM_SIZE * 0.7 + Math.sin(this.time * 1.5 + 0.5) * 0.03;
 
-      const rainbowShimmer = mesh.getObjectByName('powerup-rainbow-shimmer') as THREE.Mesh;
-      if (rainbowShimmer) {
-        const shimmerPulse = 1 + Math.sin(this.time * 4) * 0.15;
-        rainbowShimmer.scale.setScalar(shimmerPulse);
-        (rainbowShimmer.material as THREE.MeshBasicMaterial).opacity = 0.5 + Math.sin(this.time * 3) * 0.3;
+        // Rainbow arcs shimmer
+        for (let i = 0; i < 6; i++) {
+          const arc = rainbowBand.getObjectByName(`rainbow-arc-${i}`) as THREE.Mesh;
+          if (arc) {
+            const shimmer = 0.7 + Math.sin(this.time * 3 + i * 0.5) * 0.3;
+            (arc.material as THREE.MeshBasicMaterial).opacity = shimmer;
+          }
+        }
+
+        // End shimmers pulse
+        for (let i = 0; i < 2; i++) {
+          const shimmer = rainbowBand.getObjectByName(`rainbow-shimmer-${i}`) as THREE.Mesh;
+          if (shimmer) {
+            const pulse = 1 + Math.sin(this.time * 4 + i * Math.PI) * 0.3;
+            shimmer.scale.setScalar(pulse);
+            (shimmer.material as THREE.MeshBasicMaterial).opacity = 0.6 + Math.sin(this.time * 5 + i) * 0.4;
+          }
+        }
       }
     });
   }
