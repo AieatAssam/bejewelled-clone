@@ -35,24 +35,33 @@ export class PauseScene implements Scene {
     this.purseUI.update();
     this.container.appendChild(this.purseUI.getElement());
 
-    // Buttons
+    // Buttons - horizontal layout for compactness
     const buttonContainer = document.createElement('div');
-    buttonContainer.style.marginTop = '20px';
+    buttonContainer.style.cssText = `
+      margin-top: 15px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+    `;
 
     const resumeButton = this.uiManager.createButton('Resume', () => {
       eventBus.emit('changeState', 'play');
     });
+    resumeButton.style.cssText += 'width: auto; padding: 12px 25px; font-size: 1.1rem;';
     buttonContainer.appendChild(resumeButton);
 
-    const saveButton = this.uiManager.createButton('Save Game', () => {
+    const saveButton = this.uiManager.createButton('Save', () => {
       eventBus.emit('saveGame');
       this.showSaveConfirmation();
     });
+    saveButton.style.cssText += 'width: auto; padding: 12px 25px; font-size: 1.1rem;';
     buttonContainer.appendChild(saveButton);
 
-    const menuButton = this.uiManager.createButton('Main Menu', () => {
+    const menuButton = this.uiManager.createButton('Menu', () => {
       eventBus.emit('changeState', 'menu');
     });
+    menuButton.style.cssText += 'width: auto; padding: 12px 25px; font-size: 1.1rem;';
     buttonContainer.appendChild(menuButton);
 
     this.container.appendChild(buttonContainer);

@@ -119,6 +119,7 @@ export class DragonEvent {
 
   resetCollection(): void {
     this.collection.clear();
+    this.totalStolenByDragon = 0; // Reset for new game
   }
 
   setCollection(collection: Map<GemType, number>): void {

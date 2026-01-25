@@ -44,6 +44,11 @@ export class GameScene implements Scene {
   private totalMoves: number = 0;
   private streakDisplay: HTMLElement | null = null;
 
+  // Deferred dragon/streak tracking (to account for cascades)
+  private pendingMoveHadBigMatch: boolean = false;
+  private pendingMoveMaxCascade: number = 0;
+  private pendingMoveWasSmallOnly: boolean = false;
+
   // UI elements
   private princessMini: HTMLElement | null = null;
   private dragonMeter: HTMLElement | null = null;
@@ -402,8 +407,28 @@ export class GameScene implements Scene {
     const matchFinder = this.controller.getMatchFinder();
     const matches = matchFinder.findAllMatches(this.board);
 
+    // At the start of a move (cascadeLevel 1), reset tracking
+    if (cascadeLevel === 1) {
+      this.pendingMoveHadBigMatch = false;
+      this.pendingMoveMaxCascade = 0;
+      this.pendingMoveWasSmallOnly = false;
+    }
+
     if (matches.length === 0) {
+      // End of cascade chain - finalize dragon threat and streak
+      this.finalizeMoveTracking();
       return;
+    }
+
+    // Track cascade data for deferred calculation
+    this.pendingMoveMaxCascade = Math.max(this.pendingMoveMaxCascade, cascadeLevel);
+    const hasBigMatch = matches.some(m => m.length >= 4);
+    if (hasBigMatch) {
+      this.pendingMoveHadBigMatch = true;
+    }
+    // Check if this level had ONLY small matches
+    if (cascadeLevel === 1 && !hasBigMatch && matches.length === 1 && matches[0].length === 3) {
+      this.pendingMoveWasSmallOnly = true;
     }
 
     // Show cascade level if > 1
@@ -414,30 +439,91 @@ export class GameScene implements Scene {
     // Collect gem IDs that will be removed
     const gemIdsToRemove: string[] = [];
     const matchedGemTypes: GemType[] = [];
+    const rainbowTypesToClear: GemType[] = [];
+    const starPositions: { row: number; col: number }[] = [];
+
+    // First pass: collect matched gems and check for powerups
     for (const match of matches) {
       for (const gem of match.gems) {
         const boardGem = this.board.getGem(gem.position.row, gem.position.col);
         if (boardGem && !gemIdsToRemove.includes(boardGem.id)) {
           gemIdsToRemove.push(boardGem.id);
           matchedGemTypes.push(boardGem.type);
+
+          // Check for Rainbow powerup - will clear ALL gems of this color!
+          if (boardGem.powerup === PowerupType.Rainbow) {
+            if (!rainbowTypesToClear.includes(boardGem.type)) {
+              rainbowTypesToClear.push(boardGem.type);
+            }
+          }
+
+          // Check for Star powerup - will clear gems in + pattern!
+          if (boardGem.powerup === PowerupType.Star) {
+            starPositions.push({ row: boardGem.position.row, col: boardGem.position.col });
+          }
         }
       }
     }
 
+    // If Star powerup was matched, add gems in + cross pattern
+    if (starPositions.length > 0) {
+      this.showPowerupCreated('⭐ Star Burst!');
+
+      for (const starPos of starPositions) {
+        // Clear entire row
+        for (let col = 0; col < 8; col++) {
+          const gem = this.board.getGem(starPos.row, col);
+          if (gem && !gemIdsToRemove.includes(gem.id)) {
+            gemIdsToRemove.push(gem.id);
+            matchedGemTypes.push(gem.type);
+          }
+        }
+        // Clear entire column
+        for (let row = 0; row < 8; row++) {
+          const gem = this.board.getGem(row, starPos.col);
+          if (gem && !gemIdsToRemove.includes(gem.id)) {
+            gemIdsToRemove.push(gem.id);
+            matchedGemTypes.push(gem.type);
+          }
+        }
+      }
+    }
+
+    // If Rainbow powerup was matched, add ALL gems of that color from the board
+    if (rainbowTypesToClear.length > 0) {
+      this.showPowerupCreated('🌈 Rainbow Blast!');
+
+      for (const colorToClear of rainbowTypesToClear) {
+        // Find all gems of this color on the board
+        for (let row = 0; row < 8; row++) {
+          for (let col = 0; col < 8; col++) {
+            const gem = this.board.getGem(row, col);
+            if (gem && gem.type === colorToClear && !gemIdsToRemove.includes(gem.id)) {
+              gemIdsToRemove.push(gem.id);
+              matchedGemTypes.push(gem.type);
+            }
+          }
+        }
+      }
+    }
+
+    const hasPowerupEffect = starPositions.length > 0 || rainbowTypesToClear.length > 0;
+
     // Step 1: Highlight matched gems (player can see what's matching)
     this.gemMeshManager.highlightMatched(gemIdsToRemove);
-    await this.delay(400); // Let player see highlighted gems
+    await this.delay(hasPowerupEffect ? 600 : 400); // Longer pause for powerup effects
 
     // Step 2: Emit particles, create flying gems, and animate removal
-    for (const match of matches) {
-      for (const gem of match.gems) {
-        const pos = this.gemMeshManager.getFactory().boardToWorld(gem.position.row, gem.position.col);
-        const colors = GEM_COLORS[gem.type as keyof typeof GEM_COLORS];
+    for (const gemId of gemIdsToRemove) {
+      const meshData = this.gemMeshManager.getMeshData(gemId);
+      if (meshData) {
+        const pos = meshData.mesh.position.clone();
+        const colors = GEM_COLORS[meshData.gem.type];
         this.particleSystem.emitCollect(pos, new THREE.Color(colors.glow));
 
         // Create flying gem animation to purse
         const screenPos = this.worldToScreen(pos);
-        this.scoreDisplay.createFlyingGem(screenPos.x, screenPos.y, gem.type as GemType);
+        this.scoreDisplay.createFlyingGem(screenPos.x, screenPos.y, meshData.gem.type);
       }
     }
 
@@ -447,23 +533,19 @@ export class GameScene implements Scene {
     this.scoreDisplay.pulseWithColors(matchedGemTypes);
 
     // Step 3: Actually remove gems from board and mesh manager
-    for (const match of matches) {
-      for (const gem of match.gems) {
-        const boardGem = this.board.getGem(gem.position.row, gem.position.col);
-        if (boardGem) {
-          this.dragonEvent.addToCollection(boardGem.type);
-          this.board.removeGem(gem.position.row, gem.position.col);
-          this.gemMeshManager.removeGem(boardGem.id);
-        }
+    for (const gemId of gemIdsToRemove) {
+      const meshData = this.gemMeshManager.getMeshData(gemId);
+      if (meshData) {
+        const gem = meshData.gem;
+        this.dragonEvent.addToCollection(gem.type);
+        this.board.removeGem(gem.position.row, gem.position.col);
+        this.gemMeshManager.removeGem(gem.id);
       }
     }
 
     // Update score to show total gems collected (not arbitrary points)
     const gemsCollected = gemIdsToRemove.length;
     this.scoreDisplay.addScore(gemsCollected);
-
-    // Track small chains for dragon event (cascades reduce threat)
-    this.trackSmallChains(matches, cascadeLevel);
 
     // Create powerup gems for big matches (4+ gems)
     for (const match of matches) {
@@ -472,8 +554,43 @@ export class GameScene implements Scene {
       }
     }
 
-    // Update streak for engagement
-    if (cascadeLevel === 1) {
+    // Step 4: Apply gravity
+    this.applyGravity();
+
+    // Step 5: Fill empty spaces
+    this.fillEmptySpaces();
+
+    await this.waitForAnimation();
+    await this.delay(150); // Small pause before checking for new matches
+
+    // Step 6: Check for new cascades
+    await this.processCascadeStep(cascadeLevel + 1);
+  }
+
+  // Finalize dragon threat and streak after entire cascade chain completes
+  private finalizeMoveTracking(): void {
+    const hadCascade = this.pendingMoveMaxCascade > 1;
+    const hadBigMatch = this.pendingMoveHadBigMatch;
+    const wasSmallOnly = this.pendingMoveWasSmallOnly;
+
+    // Dragon threat: only increase for PURE small matches (no cascade, no big match)
+    if (wasSmallOnly && !hadCascade) {
+      // Single small match with no cascade - increases dragon threat
+      const chains = this.controller.getConsecutiveSmallChains() + 1;
+      this.controller.setConsecutiveSmallChains(chains);
+      if (chains >= 3) {
+        eventBus.emit('dragonEvent');
+        this.controller.setConsecutiveSmallChains(0);
+      }
+    } else if (hadBigMatch || hadCascade) {
+      // Big matches or cascades REDUCE dragon threat
+      const reduction = hadCascade ? this.pendingMoveMaxCascade : 1;
+      const current = this.controller.getConsecutiveSmallChains();
+      this.controller.setConsecutiveSmallChains(Math.max(0, current - reduction));
+    }
+
+    // Streaks: only count for 4+ matches or cascades (not boring 3-matches)
+    if (hadBigMatch || hadCascade) {
       this.moveStreak++;
       this.totalMoves++;
       if (this.moveStreak > this.bestStreak) {
@@ -489,19 +606,13 @@ export class GameScene implements Scene {
       } else if (this.moveStreak === 25) {
         this.showCelebration('AMAZING! 25 Streak!', '#44ffaa');
       }
+    } else {
+      // Regular 3-match doesn't count toward streak, but also doesn't reset it
+      this.totalMoves++;
     }
 
-    // Step 4: Apply gravity
-    this.applyGravity();
-
-    // Step 5: Fill empty spaces
-    this.fillEmptySpaces();
-
-    await this.waitForAnimation();
-    await this.delay(150); // Small pause before checking for new matches
-
-    // Step 6: Check for new cascades
-    await this.processCascadeStep(cascadeLevel + 1);
+    // Update dragon meter UI
+    this.updateDragonMeter();
   }
 
   private showCascadeText(level: number): void {
@@ -530,27 +641,6 @@ export class GameScene implements Scene {
     return baseScore * cascadeLevel;
   }
 
-  private trackSmallChains(matches: { length: number }[], cascadeLevel: number): void {
-    const hasOnlySmallMatches = matches.every(m => m.length === 3);
-    const hasBigMatch = matches.some(m => m.length >= 4);
-
-    if (hasBigMatch || cascadeLevel > 1) {
-      // Big matches (4+) or cascades REDUCE threat
-      const reduction = cascadeLevel > 1 ? cascadeLevel : 1;
-      const current = this.controller.getConsecutiveSmallChains();
-      this.controller.setConsecutiveSmallChains(Math.max(0, current - reduction));
-    } else if (hasOnlySmallMatches && matches.length === 1) {
-      // Only single small matches (exactly 3) INCREASE threat
-      const chains = this.controller.getConsecutiveSmallChains() + 1;
-      this.controller.setConsecutiveSmallChains(chains);
-      if (chains >= 3) {
-        eventBus.emit('dragonEvent');
-        this.controller.setConsecutiveSmallChains(0);
-      }
-    }
-    // Multiple small matches in same cascade don't increase threat (they show skill)
-  }
-
   private applyGravity(): void {
     for (let col = 0; col < 8; col++) {
       let writeRow = 7;
@@ -570,17 +660,21 @@ export class GameScene implements Scene {
   }
 
   private fillEmptySpaces(): void {
+    // Track if we've spawned the powerup in the target column
+    let powerupSpawned = false;
+
     for (let col = 0; col < 8; col++) {
+      // For each column, find empty spaces from top to bottom
       for (let row = 0; row < 8; row++) {
         if (!this.board.getGem(row, col)) {
           let gem;
 
-          // Check if this position should have a powerup
+          // Spawn powerup at first empty space in the matching column
           if (this.pendingPowerup &&
-              this.pendingPowerup.position.row === row &&
-              this.pendingPowerup.position.col === col) {
+              this.pendingPowerup.position.col === col &&
+              !powerupSpawned) {
             gem = createGem(this.pendingPowerup.type, { row, col }, this.pendingPowerup.powerup);
-            this.pendingPowerup = null;
+            powerupSpawned = true;
           } else {
             gem = createGem(this.getRandomGemType(), { row, col });
           }
@@ -591,7 +685,7 @@ export class GameScene implements Scene {
       }
     }
 
-    // Clear any unused powerup
+    // Clear pending powerup
     this.pendingPowerup = null;
   }
 

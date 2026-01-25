@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GemType, GEM_COLORS, Gem } from '../puzzle/Gem';
+import { GemType, GEM_COLORS, Gem, PowerupType } from '../puzzle/Gem';
 import { BOARD_SIZE } from '../puzzle/Board';
 
 const GEM_SIZE = 0.42;
@@ -166,6 +166,80 @@ export class GemMeshFactory {
     ring.visible = false;
     ring.name = 'ring';
     group.add(ring);
+
+    // Add powerup indicators
+    if (gem.powerup === PowerupType.Star) {
+      // Star gem - add golden star overlay
+      const starShape = new THREE.Shape();
+      const outerRadius = GEM_SIZE * 0.6;
+      const innerRadius = GEM_SIZE * 0.25;
+      const points = 5;
+
+      for (let i = 0; i < points * 2; i++) {
+        const radius = i % 2 === 0 ? outerRadius : innerRadius;
+        const angle = (i * Math.PI) / points - Math.PI / 2;
+        const x = Math.cos(angle) * radius;
+        const y = Math.sin(angle) * radius;
+        if (i === 0) {
+          starShape.moveTo(x, y);
+        } else {
+          starShape.lineTo(x, y);
+        }
+      }
+      starShape.closePath();
+
+      const starGeom = new THREE.ShapeGeometry(starShape);
+      const starMat = new THREE.MeshBasicMaterial({
+        color: 0xffd700,
+        transparent: true,
+        opacity: 0.9,
+        side: THREE.DoubleSide,
+      });
+      const starMesh = new THREE.Mesh(starGeom, starMat);
+      starMesh.position.z = GEM_SIZE * 0.5;
+      starMesh.name = 'powerup-star';
+      group.add(starMesh);
+
+      // Add star glow ring
+      const starGlowGeom = new THREE.TorusGeometry(GEM_SIZE * 0.9, 0.06, 8, 24);
+      const starGlowMat = new THREE.MeshBasicMaterial({
+        color: 0xffdd00,
+        transparent: true,
+        opacity: 0.7,
+      });
+      const starGlow = new THREE.Mesh(starGlowGeom, starGlowMat);
+      starGlow.rotation.x = Math.PI / 2;
+      starGlow.name = 'powerup-star-glow';
+      group.add(starGlow);
+    } else if (gem.powerup === PowerupType.Rainbow) {
+      // Rainbow gem - add colorful spinning rings
+      const rainbowColors = [0xff0000, 0xff8800, 0xffff00, 0x00ff00, 0x0088ff, 0x8800ff];
+
+      rainbowColors.forEach((color, i) => {
+        const rainbowRingGeom = new THREE.TorusGeometry(GEM_SIZE * (0.7 + i * 0.1), 0.03, 8, 24);
+        const rainbowRingMat = new THREE.MeshBasicMaterial({
+          color: color,
+          transparent: true,
+          opacity: 0.8,
+        });
+        const rainbowRing = new THREE.Mesh(rainbowRingGeom, rainbowRingMat);
+        rainbowRing.rotation.x = Math.PI / 2;
+        rainbowRing.rotation.z = (i * Math.PI) / 6;
+        rainbowRing.name = `powerup-rainbow-${i}`;
+        group.add(rainbowRing);
+      });
+
+      // Add central white glow sphere
+      const glowSphereGeom = new THREE.SphereGeometry(GEM_SIZE * 0.3, 12, 8);
+      const glowSphereMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.6,
+      });
+      const glowSphere = new THREE.Mesh(glowSphereGeom, glowSphereMat);
+      glowSphere.name = 'powerup-rainbow-glow';
+      group.add(glowSphere);
+    }
 
     const position = this.boardToWorld(gem.position.row, gem.position.col);
     group.position.copy(position);
@@ -353,6 +427,36 @@ export class GemMeshManager {
       if (highlight) {
         const shimmer = 0.4 + Math.sin(this.time * 2 + phase) * 0.3;
         (highlight.material as THREE.MeshBasicMaterial).opacity = shimmer;
+      }
+
+      // Powerup animations
+      const starMesh = mesh.getObjectByName('powerup-star') as THREE.Mesh;
+      if (starMesh) {
+        // Star rotates slowly and pulses
+        starMesh.rotation.z = this.time * 1.5;
+        const starPulse = 1 + Math.sin(this.time * 4) * 0.15;
+        starMesh.scale.setScalar(starPulse);
+      }
+
+      const starGlow = mesh.getObjectByName('powerup-star-glow') as THREE.Mesh;
+      if (starGlow) {
+        starGlow.rotation.z = -this.time * 2;
+        (starGlow.material as THREE.MeshBasicMaterial).opacity = 0.5 + Math.sin(this.time * 3) * 0.3;
+      }
+
+      // Rainbow rings spin at different speeds
+      for (let i = 0; i < 6; i++) {
+        const rainbowRing = mesh.getObjectByName(`powerup-rainbow-${i}`) as THREE.Mesh;
+        if (rainbowRing) {
+          rainbowRing.rotation.z = this.time * (1 + i * 0.3) + (i * Math.PI) / 3;
+          (rainbowRing.material as THREE.MeshBasicMaterial).opacity = 0.6 + Math.sin(this.time * 2 + i) * 0.3;
+        }
+      }
+
+      const rainbowGlow = mesh.getObjectByName('powerup-rainbow-glow') as THREE.Mesh;
+      if (rainbowGlow) {
+        const glowPulse = 1 + Math.sin(this.time * 5) * 0.2;
+        rainbowGlow.scale.setScalar(glowPulse);
       }
     });
   }

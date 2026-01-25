@@ -48,7 +48,8 @@
     #ui-overlay .princess-card,
     #ui-overlay #hint-button,
     #ui-overlay #shuffle-button,
-    #ui-overlay #purse-score {
+    #ui-overlay #purse-score,
+    #ui-overlay #pause-menu {
       pointer-events: auto;
       cursor: pointer;
     }
@@ -226,15 +227,14 @@
       transform: scale(1.1);
     }
 
-    /* Dragon warning meter */
+    /* Dragon warning meter - positioned on left side */
     #dragon-meter-container {
       position: absolute;
       bottom: 15px;
-      left: 50%;
-      transform: translateX(-50%);
+      left: 15px;
       text-align: center;
       background: rgba(0,0,0,0.7);
-      padding: 8px 15px 10px;
+      padding: 8px 12px 10px;
       border-radius: 12px;
       border: 2px solid #8b0000;
     }
@@ -242,17 +242,17 @@
     #dragon-meter-title {
       color: #ff6600;
       font-family: 'Quicksand', sans-serif;
-      font-size: 0.9rem;
+      font-size: 0.8rem;
       font-weight: bold;
       margin-bottom: 5px;
     }
 
     #dragon-meter {
-      width: 180px;
-      height: 14px;
+      width: 120px;
+      height: 12px;
       background: rgba(50,20,20,0.8);
       border: 1px solid #660000;
-      border-radius: 7px;
+      border-radius: 6px;
       overflow: hidden;
     }
 
@@ -267,9 +267,9 @@
     #dragon-meter-hint {
       color: #aaa;
       font-family: 'Quicksand', sans-serif;
-      font-size: 0.7rem;
-      margin-top: 5px;
-      max-width: 200px;
+      font-size: 0.65rem;
+      margin-top: 4px;
+      max-width: 120px;
     }
 
     /* Menu styles */
