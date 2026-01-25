@@ -33,23 +33,31 @@ export interface Position {
   col: number;
 }
 
+export enum PowerupType {
+  None = 'none',
+  Star = 'star',       // 4-match: Clears gems in cross pattern
+  Rainbow = 'rainbow', // 5-match: Clears all gems of chosen color
+}
+
 export interface Gem {
   id: string;
   type: GemType;
   position: Position;
-  isSpecial: boolean;
-  isSuper: boolean;
+  isSpecial: boolean;  // Has star powerup
+  isSuper: boolean;    // Has rainbow powerup
+  powerup: PowerupType;
 }
 
 let gemIdCounter = 0;
 
-export function createGem(type: GemType, position: Position): Gem {
+export function createGem(type: GemType, position: Position, powerup: PowerupType = PowerupType.None): Gem {
   return {
     id: `gem_${gemIdCounter++}`,
     type,
     position: { ...position },
-    isSpecial: false,
-    isSuper: false,
+    isSpecial: powerup === PowerupType.Star,
+    isSuper: powerup === PowerupType.Rainbow,
+    powerup,
   };
 }
 

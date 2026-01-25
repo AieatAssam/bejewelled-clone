@@ -12,7 +12,7 @@ import { DragonEvent } from '../puzzle/DragonEvent';
 import { eventBus } from '../utils/EventBus';
 import { getDefaultPrincess } from '../characters/princessData';
 import { Princess } from '../characters/Princess';
-import { GEM_COLORS, GemType, createGem } from '../puzzle/Gem';
+import { GEM_COLORS, GemType, createGem, PowerupType } from '../puzzle/Gem';
 
 export class GameScene implements Scene {
   private uiManager: UIManager;
@@ -37,6 +37,12 @@ export class GameScene implements Scene {
   private dragStartPos: { row: number; col: number } | null = null;
   private dragStartScreenPos: THREE.Vector2 = new THREE.Vector2();
   private isInitialized: boolean = false;
+
+  // Streak and engagement tracking
+  private moveStreak: number = 0;
+  private bestStreak: number = 0;
+  private totalMoves: number = 0;
+  private streakDisplay: HTMLElement | null = null;
 
   // UI elements
   private princessMini: HTMLElement | null = null;
@@ -362,7 +368,9 @@ export class GameScene implements Scene {
 
       this.isProcessing = false;
     } else {
-      // Invalid swap - animate shake
+      // Invalid swap - animate shake and reset streak
+      this.resetStreak();
+
       const gem1 = this.board.getGem(pos1.row, pos1.col);
       const gem2 = this.board.getGem(pos2.row, pos2.col);
 
@@ -457,6 +465,32 @@ export class GameScene implements Scene {
     // Track small chains for dragon event (cascades reduce threat)
     this.trackSmallChains(matches, cascadeLevel);
 
+    // Create powerup gems for big matches (4+ gems)
+    for (const match of matches) {
+      if (match.length >= 4) {
+        this.createPowerupFromMatch(match);
+      }
+    }
+
+    // Update streak for engagement
+    if (cascadeLevel === 1) {
+      this.moveStreak++;
+      this.totalMoves++;
+      if (this.moveStreak > this.bestStreak) {
+        this.bestStreak = this.moveStreak;
+      }
+      this.updateStreakDisplay();
+
+      // Celebration milestones
+      if (this.moveStreak === 5) {
+        this.showCelebration('5 Move Streak!', '#ffdd44');
+      } else if (this.moveStreak === 10) {
+        this.showCelebration('10 Move Streak!', '#ff69b4');
+      } else if (this.moveStreak === 25) {
+        this.showCelebration('AMAZING! 25 Streak!', '#44ffaa');
+      }
+    }
+
     // Step 4: Apply gravity
     this.applyGravity();
 
@@ -539,12 +573,26 @@ export class GameScene implements Scene {
     for (let col = 0; col < 8; col++) {
       for (let row = 0; row < 8; row++) {
         if (!this.board.getGem(row, col)) {
-          const gem = createGem(this.getRandomGemType(), { row, col });
+          let gem;
+
+          // Check if this position should have a powerup
+          if (this.pendingPowerup &&
+              this.pendingPowerup.position.row === row &&
+              this.pendingPowerup.position.col === col) {
+            gem = createGem(this.pendingPowerup.type, { row, col }, this.pendingPowerup.powerup);
+            this.pendingPowerup = null;
+          } else {
+            gem = createGem(this.getRandomGemType(), { row, col });
+          }
+
           this.board.setGem(row, col, gem);
           this.gemMeshManager.spawnGemFromTop(gem);
         }
       }
     }
+
+    // Clear any unused powerup
+    this.pendingPowerup = null;
   }
 
   private getRandomGemType(): GemType {
@@ -567,6 +615,83 @@ export class GameScene implements Scene {
     const y = (-vector.y * 0.5 + 0.5) * canvas.clientHeight;
 
     return { x, y };
+  }
+
+  // Create powerup gem from big matches
+  private createPowerupFromMatch(match: { gems: { position: { row: number; col: number }; type: string }[]; length: number }): void {
+    // Find a position in the match to place the powerup (center-ish)
+    const centerIndex = Math.floor(match.gems.length / 2);
+    const centerGem = match.gems[centerIndex];
+    const pos = centerGem.position;
+
+    // Determine powerup type based on match length
+    let powerup = PowerupType.None;
+    if (match.length === 4) {
+      powerup = PowerupType.Star;
+    } else if (match.length >= 5) {
+      powerup = PowerupType.Rainbow;
+    }
+
+    if (powerup !== PowerupType.None) {
+      // Create the powerup gem at this position after gravity settles
+      // We'll mark this position to spawn a powerup instead of random gem
+      this.pendingPowerup = {
+        position: { row: pos.row, col: pos.col },
+        type: centerGem.type as GemType,
+        powerup
+      };
+
+      // Show powerup creation message
+      const powerupName = powerup === PowerupType.Star ? '⭐ Star Gem!' : '🌈 Rainbow Gem!';
+      this.showPowerupCreated(powerupName);
+    }
+  }
+
+  private pendingPowerup: { position: { row: number; col: number }; type: GemType; powerup: PowerupType } | null = null;
+
+  private showPowerupCreated(text: string): void {
+    const msg = document.createElement('div');
+    msg.className = 'powerup-message';
+    msg.textContent = text;
+    this.uiManager.getOverlay().appendChild(msg);
+
+    setTimeout(() => {
+      msg.classList.add('fade-out');
+      setTimeout(() => msg.remove(), 500);
+    }, 1500);
+  }
+
+  private updateStreakDisplay(): void {
+    if (this.streakDisplay) {
+      if (this.moveStreak >= 3) {
+        this.streakDisplay.textContent = `🔥 ${this.moveStreak} Streak`;
+        this.streakDisplay.classList.remove('hidden');
+      } else {
+        this.streakDisplay.classList.add('hidden');
+      }
+    }
+  }
+
+  private showCelebration(text: string, color: string): void {
+    const celebration = document.createElement('div');
+    celebration.className = 'celebration-message';
+    celebration.textContent = text;
+    celebration.style.color = color;
+    this.uiManager.getOverlay().appendChild(celebration);
+
+    // Big particle burst
+    this.particleSystem.emitCombo(new THREE.Vector3(0, 0, 1), 5);
+
+    setTimeout(() => {
+      celebration.classList.add('fade-out');
+      setTimeout(() => celebration.remove(), 500);
+    }, 2000);
+  }
+
+  // Reset streak on failed move
+  private resetStreak(): void {
+    this.moveStreak = 0;
+    this.updateStreakDisplay();
   }
 
   private syncMeshPositions(): void {
@@ -736,9 +861,17 @@ export class GameScene implements Scene {
 
     this.createPrincessMini();
     this.createDragonMeter();
+    this.createStreakDisplay();
     this.createHintButton();
     this.createShuffleButton();
     this.createDecorations();
+  }
+
+  private createStreakDisplay(): void {
+    this.streakDisplay = document.createElement('div');
+    this.streakDisplay.id = 'streak-display';
+    this.streakDisplay.className = 'hidden';
+    this.uiManager.getOverlay().appendChild(this.streakDisplay);
   }
 
   private createPrincessMini(): void {
@@ -965,6 +1098,10 @@ export class GameScene implements Scene {
     if (this.gameDecorations) {
       this.gameDecorations.remove();
       this.gameDecorations = null;
+    }
+    if (this.streakDisplay) {
+      this.streakDisplay.remove();
+      this.streakDisplay = null;
     }
 
     const comboEl = this.scoreDisplay.getComboElement();
