@@ -7,6 +7,8 @@ A magical match-3 puzzle game built with TypeScript and Three.js. Help your chos
 - **6 Unique Princesses** - Choose from Aurora, Marina, Ivy, Ember, Luna, or Crystal, each with their own color theme
 - **Beautiful 3D Gems** - Sparkling rubies, sapphires, emeralds, diamonds, amethysts, gold bracelets, and pearl earrings
 - **Dragon Threat System** - Make small matches and the dragon gets angry! Create big combos to calm him down
+- **Powerup Gems** - Match 4 gems for a Star Gem, 5+ gems for a Rainbow Gem
+- **Streak System** - Build consecutive move streaks for celebrations and rewards
 - **Fairy Dust Power** - Spend gems to shuffle the board when you're stuck
 - **Save/Load System** - Your progress is saved to cookies
 - **Responsive Controls** - Click, drag, or swipe to swap gems
@@ -102,11 +104,22 @@ princess-game/
 - Cascades (chain reactions) **decrease** threat
 - At full threat, dragon attacks and steals 1-5 gems
 
+### Powerups
+- **Star Gem (⭐)** - Match 4 gems to create; clears gems in a cross pattern
+- **Rainbow Gem (🌈)** - Match 5+ gems to create; clears all gems of chosen color
+
+### Streak System
+- Build streaks by making consecutive successful matches
+- Streak counter appears after 3+ moves
+- Celebration messages at 5, 10, and 25 move streaks
+- Failed swaps reset your streak
+
 ### Special Features
 - **Hint System** - Highlights a valid move with pulsing animation
 - **Fairy Dust** - Emergency shuffle when stuck (costs gems)
 - **Flying Gem Animation** - Collected gems fly into your purse
 - **Cascade Visibility** - See each cascade level as it happens
+- **Purse Pulse** - Purse glows with colors of collected gems
 
 ## License
 
