@@ -167,12 +167,12 @@ export class GemMeshFactory {
     ring.name = 'ring';
     group.add(ring);
 
-    // Add powerup indicators
+    // Add powerup indicators (no rings, just the decoration)
     if (gem.powerup === PowerupType.Star) {
       // Star gem - add golden star overlay
       const starShape = new THREE.Shape();
-      const outerRadius = GEM_SIZE * 0.6;
-      const innerRadius = GEM_SIZE * 0.25;
+      const outerRadius = GEM_SIZE * 0.55;
+      const innerRadius = GEM_SIZE * 0.22;
       const points = 5;
 
       for (let i = 0; i < points * 2; i++) {
@@ -192,7 +192,7 @@ export class GemMeshFactory {
       const starMat = new THREE.MeshBasicMaterial({
         color: 0xffd700,
         transparent: true,
-        opacity: 0.9,
+        opacity: 0.95,
         side: THREE.DoubleSide,
       });
       const starMesh = new THREE.Mesh(starGeom, starMat);
@@ -200,45 +200,59 @@ export class GemMeshFactory {
       starMesh.name = 'powerup-star';
       group.add(starMesh);
 
-      // Add star glow ring
-      const starGlowGeom = new THREE.TorusGeometry(GEM_SIZE * 0.9, 0.06, 8, 24);
-      const starGlowMat = new THREE.MeshBasicMaterial({
-        color: 0xffdd00,
-        transparent: true,
-        opacity: 0.7,
-      });
-      const starGlow = new THREE.Mesh(starGlowGeom, starGlowMat);
-      starGlow.rotation.x = Math.PI / 2;
-      starGlow.name = 'powerup-star-glow';
-      group.add(starGlow);
-    } else if (gem.powerup === PowerupType.Rainbow) {
-      // Rainbow gem - add colorful spinning rings
-      const rainbowColors = [0xff0000, 0xff8800, 0xffff00, 0x00ff00, 0x0088ff, 0x8800ff];
-
-      rainbowColors.forEach((color, i) => {
-        const rainbowRingGeom = new THREE.TorusGeometry(GEM_SIZE * (0.7 + i * 0.1), 0.03, 8, 24);
-        const rainbowRingMat = new THREE.MeshBasicMaterial({
-          color: color,
+      // Small sparkle dots around the star (instead of ring)
+      const sparklePositions = [
+        { x: 0.4, y: 0.4 }, { x: -0.4, y: 0.4 },
+        { x: 0.4, y: -0.4 }, { x: -0.4, y: -0.4 },
+      ];
+      sparklePositions.forEach((pos, i) => {
+        const sparkleGeom = new THREE.CircleGeometry(GEM_SIZE * 0.08, 6);
+        const sparkleMat = new THREE.MeshBasicMaterial({
+          color: 0xffffaa,
           transparent: true,
           opacity: 0.8,
         });
-        const rainbowRing = new THREE.Mesh(rainbowRingGeom, rainbowRingMat);
-        rainbowRing.rotation.x = Math.PI / 2;
-        rainbowRing.rotation.z = (i * Math.PI) / 6;
-        rainbowRing.name = `powerup-rainbow-${i}`;
-        group.add(rainbowRing);
+        const sparkle = new THREE.Mesh(sparkleGeom, sparkleMat);
+        sparkle.position.set(pos.x * GEM_SIZE, pos.y * GEM_SIZE, GEM_SIZE * 0.52);
+        sparkle.name = `powerup-star-sparkle-${i}`;
+        group.add(sparkle);
+      });
+    } else if (gem.powerup === PowerupType.Rainbow) {
+      // Rainbow gem - colorful arc/swirl decoration (no rings)
+      const rainbowColors = [0xff0000, 0xff8800, 0xffff00, 0x00ff00, 0x0088ff, 0x8800ff];
+
+      // Create small colored dots in a circular pattern
+      rainbowColors.forEach((color, i) => {
+        const angle = (i / rainbowColors.length) * Math.PI * 2 - Math.PI / 2;
+        const radius = GEM_SIZE * 0.5;
+
+        const dotGeom = new THREE.CircleGeometry(GEM_SIZE * 0.12, 8);
+        const dotMat = new THREE.MeshBasicMaterial({
+          color: color,
+          transparent: true,
+          opacity: 0.9,
+        });
+        const dot = new THREE.Mesh(dotGeom, dotMat);
+        dot.position.set(
+          Math.cos(angle) * radius,
+          Math.sin(angle) * radius,
+          GEM_SIZE * 0.5
+        );
+        dot.name = `powerup-rainbow-dot-${i}`;
+        group.add(dot);
       });
 
-      // Add central white glow sphere
-      const glowSphereGeom = new THREE.SphereGeometry(GEM_SIZE * 0.3, 12, 8);
-      const glowSphereMat = new THREE.MeshBasicMaterial({
+      // Add central white shimmer
+      const shimmerGeom = new THREE.CircleGeometry(GEM_SIZE * 0.2, 12);
+      const shimmerMat = new THREE.MeshBasicMaterial({
         color: 0xffffff,
         transparent: true,
-        opacity: 0.6,
+        opacity: 0.7,
       });
-      const glowSphere = new THREE.Mesh(glowSphereGeom, glowSphereMat);
-      glowSphere.name = 'powerup-rainbow-glow';
-      group.add(glowSphere);
+      const shimmer = new THREE.Mesh(shimmerGeom, shimmerMat);
+      shimmer.position.z = GEM_SIZE * 0.51;
+      shimmer.name = 'powerup-rainbow-shimmer';
+      group.add(shimmer);
     }
 
     const position = this.boardToWorld(gem.position.row, gem.position.col);
@@ -433,30 +447,39 @@ export class GemMeshManager {
       const starMesh = mesh.getObjectByName('powerup-star') as THREE.Mesh;
       if (starMesh) {
         // Star rotates slowly and pulses
-        starMesh.rotation.z = this.time * 1.5;
-        const starPulse = 1 + Math.sin(this.time * 4) * 0.15;
+        starMesh.rotation.z = this.time * 1.2;
+        const starPulse = 1 + Math.sin(this.time * 3) * 0.1;
         starMesh.scale.setScalar(starPulse);
       }
 
-      const starGlow = mesh.getObjectByName('powerup-star-glow') as THREE.Mesh;
-      if (starGlow) {
-        starGlow.rotation.z = -this.time * 2;
-        (starGlow.material as THREE.MeshBasicMaterial).opacity = 0.5 + Math.sin(this.time * 3) * 0.3;
-      }
-
-      // Rainbow rings spin at different speeds
-      for (let i = 0; i < 6; i++) {
-        const rainbowRing = mesh.getObjectByName(`powerup-rainbow-${i}`) as THREE.Mesh;
-        if (rainbowRing) {
-          rainbowRing.rotation.z = this.time * (1 + i * 0.3) + (i * Math.PI) / 3;
-          (rainbowRing.material as THREE.MeshBasicMaterial).opacity = 0.6 + Math.sin(this.time * 2 + i) * 0.3;
+      // Star sparkles twinkle
+      for (let i = 0; i < 4; i++) {
+        const sparkle = mesh.getObjectByName(`powerup-star-sparkle-${i}`) as THREE.Mesh;
+        if (sparkle) {
+          const twinkle = 0.5 + Math.sin(this.time * 4 + i * 1.5) * 0.5;
+          (sparkle.material as THREE.MeshBasicMaterial).opacity = twinkle;
+          sparkle.scale.setScalar(0.8 + twinkle * 0.4);
         }
       }
 
-      const rainbowGlow = mesh.getObjectByName('powerup-rainbow-glow') as THREE.Mesh;
-      if (rainbowGlow) {
-        const glowPulse = 1 + Math.sin(this.time * 5) * 0.2;
-        rainbowGlow.scale.setScalar(glowPulse);
+      // Rainbow dots orbit slowly
+      for (let i = 0; i < 6; i++) {
+        const dot = mesh.getObjectByName(`powerup-rainbow-dot-${i}`) as THREE.Mesh;
+        if (dot) {
+          const baseAngle = (i / 6) * Math.PI * 2 - Math.PI / 2;
+          const orbitAngle = baseAngle + this.time * 0.8;
+          const radius = GEM_SIZE * 0.5;
+          dot.position.x = Math.cos(orbitAngle) * radius;
+          dot.position.y = Math.sin(orbitAngle) * radius;
+          (dot.material as THREE.MeshBasicMaterial).opacity = 0.7 + Math.sin(this.time * 3 + i) * 0.3;
+        }
+      }
+
+      const rainbowShimmer = mesh.getObjectByName('powerup-rainbow-shimmer') as THREE.Mesh;
+      if (rainbowShimmer) {
+        const shimmerPulse = 1 + Math.sin(this.time * 4) * 0.15;
+        rainbowShimmer.scale.setScalar(shimmerPulse);
+        (rainbowShimmer.material as THREE.MeshBasicMaterial).opacity = 0.5 + Math.sin(this.time * 3) * 0.3;
       }
     });
   }
