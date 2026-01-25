@@ -61,78 +61,112 @@ export class GemMeshFactory {
     const group = new THREE.Group();
     const geometry = sharedGeometries.get(gem.type)!;
 
-    // Create rich, vibrant gem materials with enhanced sparkle
-    let material: THREE.MeshStandardMaterial;
+    // Create gem materials with transparency for realistic gem appearance
+    let material: THREE.MeshPhysicalMaterial;
 
     if (gem.type === GemType.Diamond) {
-      // Diamond - brilliant sparkling clear
-      material = new THREE.MeshStandardMaterial({
-        color: 0xccf4ff,
-        metalness: 0.2,
+      // Diamond - brilliant clear with blue fire
+      material = new THREE.MeshPhysicalMaterial({
+        color: 0xeeffff,
+        metalness: 0.0,
         roughness: 0.0,
-        emissive: 0x88ccff,
-        emissiveIntensity: 0.25,
-        envMapIntensity: 1.5,
+        transmission: 0.9,        // High transparency
+        thickness: 0.5,           // Refraction depth
+        ior: 2.4,                 // Diamond's index of refraction
+        emissive: 0x4488ff,
+        emissiveIntensity: 0.15,
+        envMapIntensity: 2.0,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.0,
       });
     } else if (gem.type === GemType.GoldBracelet) {
-      // Gold - rich luxurious metallic
-      material = new THREE.MeshStandardMaterial({
-        color: 0xffbb22,
+      // Gold - rich luxurious metallic (no transparency)
+      material = new THREE.MeshPhysicalMaterial({
+        color: 0xffcc33,
         metalness: 0.95,
-        roughness: 0.15,
-        emissive: 0xbb8800,
-        emissiveIntensity: 0.3,
-        envMapIntensity: 1.2,
+        roughness: 0.1,
+        emissive: 0xcc9900,
+        emissiveIntensity: 0.25,
+        envMapIntensity: 1.5,
+        clearcoat: 0.8,
+        clearcoatRoughness: 0.1,
       });
     } else if (gem.type === GemType.PearlEarring) {
-      // Pearl - lustrous iridescent white
-      material = new THREE.MeshStandardMaterial({
+      // Pearl - lustrous iridescent (slight translucency)
+      material = new THREE.MeshPhysicalMaterial({
         color: 0xfff8f0,
-        metalness: 0.3,
-        roughness: 0.2,
+        metalness: 0.0,
+        roughness: 0.15,
+        transmission: 0.1,
+        thickness: 0.3,
         emissive: 0xffeedd,
-        emissiveIntensity: 0.15,
+        emissiveIntensity: 0.1,
         envMapIntensity: 1.0,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.2,
+        sheen: 1.0,
+        sheenColor: new THREE.Color(0xffddcc),
+        sheenRoughness: 0.3,
       });
     } else if (gem.type === GemType.Ruby) {
-      // Ruby - fiery deep red
-      material = new THREE.MeshStandardMaterial({
-        color: 0xdd1133,
-        metalness: 0.15,
-        roughness: 0.02,
-        emissive: 0x991122,
-        emissiveIntensity: 0.4,
-        envMapIntensity: 1.3,
+      // Ruby - deep red with inner fire
+      material = new THREE.MeshPhysicalMaterial({
+        color: 0xee2244,
+        metalness: 0.0,
+        roughness: 0.0,
+        transmission: 0.6,
+        thickness: 0.8,
+        ior: 1.77,                // Ruby's IOR
+        emissive: 0xcc1133,
+        emissiveIntensity: 0.35,
+        envMapIntensity: 1.5,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.0,
       });
     } else if (gem.type === GemType.Sapphire) {
-      // Sapphire - deep royal blue
-      material = new THREE.MeshStandardMaterial({
-        color: 0x2244cc,
-        metalness: 0.15,
-        roughness: 0.02,
-        emissive: 0x1133aa,
-        emissiveIntensity: 0.4,
-        envMapIntensity: 1.3,
+      // Sapphire - deep blue transparency
+      material = new THREE.MeshPhysicalMaterial({
+        color: 0x3355dd,
+        metalness: 0.0,
+        roughness: 0.0,
+        transmission: 0.6,
+        thickness: 0.8,
+        ior: 1.77,                // Sapphire's IOR
+        emissive: 0x2244bb,
+        emissiveIntensity: 0.3,
+        envMapIntensity: 1.5,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.0,
       });
     } else if (gem.type === GemType.Emerald) {
-      // Emerald - vivid rich green
-      material = new THREE.MeshStandardMaterial({
-        color: 0x22aa55,
-        metalness: 0.15,
-        roughness: 0.05,
-        emissive: 0x118844,
-        emissiveIntensity: 0.35,
-        envMapIntensity: 1.3,
+      // Emerald - rich green with depth
+      material = new THREE.MeshPhysicalMaterial({
+        color: 0x33cc66,
+        metalness: 0.0,
+        roughness: 0.0,
+        transmission: 0.65,
+        thickness: 0.7,
+        ior: 1.58,                // Emerald's IOR
+        emissive: 0x22aa55,
+        emissiveIntensity: 0.3,
+        envMapIntensity: 1.5,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.0,
       });
     } else {
-      // Amethyst - royal purple
-      material = new THREE.MeshStandardMaterial({
-        color: 0x9933cc,
-        metalness: 0.15,
-        roughness: 0.02,
-        emissive: 0x6622aa,
-        emissiveIntensity: 0.4,
-        envMapIntensity: 1.3,
+      // Amethyst - royal purple with clarity
+      material = new THREE.MeshPhysicalMaterial({
+        color: 0xaa44dd,
+        metalness: 0.0,
+        roughness: 0.0,
+        transmission: 0.6,
+        thickness: 0.8,
+        ior: 1.54,                // Quartz IOR
+        emissive: 0x8833bb,
+        emissiveIntensity: 0.3,
+        envMapIntensity: 1.5,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.0,
       });
     }
 
@@ -600,7 +634,7 @@ export class GemMeshManager {
         const ring = meshData.mesh.getObjectByName('ring') as THREE.Mesh;
 
         if (gemMesh) {
-          const material = gemMesh.material as THREE.MeshStandardMaterial;
+          const material = gemMesh.material as THREE.MeshPhysicalMaterial;
           const originalEmissive = material.emissiveIntensity;
           const originalScale = gemMesh.scale.x;
 
@@ -645,7 +679,7 @@ export class GemMeshManager {
       const gemMesh = meshData.mesh.getObjectByName('gem') as THREE.Mesh;
       if (gemMesh) {
         // Make it glow brightly
-        const material = gemMesh.material as THREE.MeshStandardMaterial;
+        const material = gemMesh.material as THREE.MeshPhysicalMaterial;
         material.emissiveIntensity = 1.0;
 
         // Scale up for emphasis
@@ -679,8 +713,8 @@ export class GemMeshManager {
           if (gemMesh) {
             const scale = 1.3 * (1 - progress);
             gemMesh.scale.setScalar(scale);
-            (gemMesh.material as THREE.MeshStandardMaterial).opacity = 1 - progress;
-            (gemMesh.material as THREE.MeshStandardMaterial).transparent = true;
+            (gemMesh.material as THREE.MeshPhysicalMaterial).opacity = 1 - progress;
+            (gemMesh.material as THREE.MeshPhysicalMaterial).transparent = true;
           }
         }
 

@@ -19,6 +19,10 @@ coverage/
 # OS files
 Thumbs.db
 
+# Screenshots
+Screenshot*.png
+*.screenshot.png
+
 # Debug
 npm-debug.log*
 yarn-debug.log*
