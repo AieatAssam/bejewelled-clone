@@ -10,7 +10,9 @@ describe('Princess', () => {
         'Test Princess',
         'Testing',
         { primary: 0xff0000, secondary: 0x00ff00, accent: 0x0000ff },
-        'A test princess.'
+        'A test princess.',
+        { name: 'Test Ability', description: 'A test ability', type: 'cascade_bonus', value: 1 },
+        'ruby'
       );
 
       expect(princess.id).toBe('test');
@@ -18,6 +20,8 @@ describe('Princess', () => {
       expect(princess.theme).toBe('Testing');
       expect(princess.colors.primary).toBe(0xff0000);
       expect(princess.description).toBe('A test princess.');
+      expect(princess.ability.name).toBe('Test Ability');
+      expect(princess.favoriteGem).toBe('ruby');
     });
   });
 

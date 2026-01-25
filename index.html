@@ -184,7 +184,7 @@
       transition: opacity 0.5s ease-out;
     }
 
-    /* Game frame decoration */
+    /* Game frame decoration - behind everything */
     .game-frame {
       position: absolute;
       top: 0;
@@ -194,6 +194,7 @@
       pointer-events: none;
       border: 4px solid transparent;
       border-image: linear-gradient(135deg, #ffd700, #ff69b4, #9370db, #ffd700) 1;
+      z-index: -1;
     }
 
     .corner-decoration {
@@ -201,6 +202,7 @@
       width: 60px;
       height: 60px;
       pointer-events: none;
+      z-index: -1;
     }
 
     .corner-decoration.top-left { top: 10px; left: 10px; }
@@ -829,6 +831,57 @@
     .celebration-message.fade-out {
       opacity: 0;
       transition: opacity 0.5s ease-out;
+    }
+
+    /* Streak reward message - extra flashy */
+    .streak-reward-message {
+      position: fixed;
+      top: 35%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 2.8rem;
+      text-shadow: 0 0 30px currentColor, 0 0 60px currentColor, 0 0 90px currentColor;
+      animation: streakRewardBounce 0.8s ease-out;
+      pointer-events: none;
+      z-index: 200;
+      background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(50,0,50,0.8));
+      padding: 20px 40px;
+      border-radius: 20px;
+      border: 3px solid currentColor;
+    }
+
+    @keyframes streakRewardBounce {
+      0% { transform: translate(-50%, -50%) scale(0) rotate(-30deg); opacity: 0; }
+      30% { transform: translate(-50%, -50%) scale(1.4) rotate(15deg); }
+      50% { transform: translate(-50%, -50%) scale(0.9) rotate(-10deg); }
+      70% { transform: translate(-50%, -50%) scale(1.1) rotate(5deg); }
+      100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; }
+    }
+
+    .streak-reward-message.fade-out {
+      opacity: 0;
+      transition: opacity 0.5s ease-out;
+    }
+
+    /* Princess ability indicator */
+    #princess-ability {
+      position: absolute;
+      top: 105px;
+      left: 15px;
+      background: rgba(0,0,0,0.7);
+      padding: 6px 12px;
+      border-radius: 10px;
+      font-family: 'Quicksand', sans-serif;
+      font-size: 0.75rem;
+      color: #ffd700;
+      max-width: 150px;
+      border: 1px solid rgba(255,215,0,0.3);
+    }
+
+    #princess-ability .ability-name {
+      font-weight: bold;
+      color: #ff69b4;
     }
   </style>
 </head>

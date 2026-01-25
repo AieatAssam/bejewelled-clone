@@ -44,6 +44,11 @@ export class GameScene implements Scene {
   private totalMoves: number = 0;
   private streakDisplay: HTMLElement | null = null;
 
+  // Hint cost tracking (increases with each use, max 10)
+  private hintUseCount: number = 0;
+  private static readonly HINT_BASE_COST = 2;
+  private static readonly HINT_MAX_COST = 10;
+
   // Deferred dragon/streak tracking (to account for cascades)
   private pendingMoveHadBigMatch: boolean = false;
   private pendingMoveMaxCascade: number = 0;
@@ -465,9 +470,10 @@ export class GameScene implements Scene {
       }
     }
 
-    // If Star powerup was matched, add gems in + cross pattern
+    // If Star powerup was matched, add gems in + cross pattern (and 3x3 for Ember)
     if (starPositions.length > 0) {
-      this.showPowerupCreated('⭐ Star Burst!');
+      const hasStarExplode = this.princess.ability.type === 'star_explode';
+      this.showPowerupCreated(hasStarExplode ? '🔥⭐ Inferno Star!' : '⭐ Star Burst!');
 
       for (const starPos of starPositions) {
         // Clear entire row
@@ -484,6 +490,23 @@ export class GameScene implements Scene {
           if (gem && !gemIdsToRemove.includes(gem.id)) {
             gemIdsToRemove.push(gem.id);
             matchedGemTypes.push(gem.type);
+          }
+        }
+
+        // Ember's Inferno Star ability: also clear 3x3 area around the star
+        if (hasStarExplode) {
+          for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+              const r = starPos.row + dr;
+              const c = starPos.col + dc;
+              if (r >= 0 && r < 8 && c >= 0 && c < 8) {
+                const gem = this.board.getGem(r, c);
+                if (gem && !gemIdsToRemove.includes(gem.id)) {
+                  gemIdsToRemove.push(gem.id);
+                  matchedGemTypes.push(gem.type);
+                }
+              }
+            }
           }
         }
       }
@@ -538,13 +561,35 @@ export class GameScene implements Scene {
       if (meshData) {
         const gem = meshData.gem;
         this.dragonEvent.addToCollection(gem.type);
+
+        // Ivy's Nature's Bounty ability: bonus gem for favorite type
+        if (this.princess.ability.type === 'favorite_bonus' && gem.type === this.princess.favoriteGem) {
+          this.dragonEvent.addToCollection(gem.type, this.princess.ability.value);
+        }
+
         this.board.removeGem(gem.position.row, gem.position.col);
         this.gemMeshManager.removeGem(gem.id);
       }
     }
 
     // Update score to show total gems collected (not arbitrary points)
-    const gemsCollected = gemIdsToRemove.length;
+    let gemsCollected = gemIdsToRemove.length;
+    // Add Ivy's bonus gems to display
+    if (this.princess.ability.type === 'favorite_bonus') {
+      const bonusCount = matchedGemTypes.filter(t => t === this.princess.favoriteGem).length;
+      gemsCollected += bonusCount * this.princess.ability.value;
+    }
+    // Aurora's Radiant Cascade ability: +1 bonus gem per cascade level
+    if (this.princess.ability.type === 'cascade_bonus' && cascadeLevel > 1) {
+      const cascadeBonus = (cascadeLevel - 1) * this.princess.ability.value;
+      gemsCollected += cascadeBonus;
+      // Add actual gems to collection for the cascade bonus
+      const randomTypes = Object.values(GemType);
+      for (let i = 0; i < cascadeBonus; i++) {
+        const bonusType = randomTypes[Math.floor(Math.random() * randomTypes.length)];
+        this.dragonEvent.addToCollection(bonusType);
+      }
+    }
     this.scoreDisplay.addScore(gemsCollected);
 
     // Create powerup gems for big matches (4+ gems)
@@ -591,20 +636,36 @@ export class GameScene implements Scene {
 
     // Streaks: only count for 4+ matches or cascades (not boring 3-matches)
     if (hadBigMatch || hadCascade) {
-      this.moveStreak++;
+      // Princess streak boost ability (Luna)
+      const streakIncrease = this.princess.ability.type === 'streak_boost' ? 2 : 1;
+      this.moveStreak += streakIncrease;
       this.totalMoves++;
       if (this.moveStreak > this.bestStreak) {
         this.bestStreak = this.moveStreak;
       }
       this.updateStreakDisplay();
 
-      // Celebration milestones
+      // Streak milestone rewards with powerups!
       if (this.moveStreak === 5) {
-        this.showCelebration('5 Move Streak!', '#ffdd44');
+        this.showStreakReward('5 Streak! +Star Gem!', '#ffdd44');
+        this.spawnBonusPowerup(PowerupType.Star);
       } else if (this.moveStreak === 10) {
-        this.showCelebration('10 Move Streak!', '#ff69b4');
+        this.showStreakReward('10 Streak! +Rainbow Gem!', '#ff69b4');
+        this.spawnBonusPowerup(PowerupType.Rainbow);
+      } else if (this.moveStreak === 15) {
+        this.showStreakReward('15 Streak! +Star Gem!', '#44ffaa');
+        this.spawnBonusPowerup(PowerupType.Star);
+      } else if (this.moveStreak === 20) {
+        this.showStreakReward('20 Streak! +Rainbow Gem!', '#ff44ff');
+        this.spawnBonusPowerup(PowerupType.Rainbow);
       } else if (this.moveStreak === 25) {
-        this.showCelebration('AMAZING! 25 Streak!', '#44ffaa');
+        this.showStreakReward('AMAZING 25! Double Rainbow!', '#44ffff');
+        this.spawnBonusPowerup(PowerupType.Rainbow);
+        this.spawnBonusPowerup(PowerupType.Rainbow);
+      } else if (this.moveStreak % 10 === 0) {
+        // Every 10 after 25
+        this.showStreakReward(`${this.moveStreak} STREAK! +Rainbow!`, '#ffffff');
+        this.spawnBonusPowerup(PowerupType.Rainbow);
       }
     } else {
       // Regular 3-match doesn't count toward streak, but also doesn't reset it
@@ -782,6 +843,56 @@ export class GameScene implements Scene {
     }, 2000);
   }
 
+  // Show streak reward with extra fanfare
+  private showStreakReward(text: string, color: string): void {
+    const reward = document.createElement('div');
+    reward.className = 'streak-reward-message';
+    reward.textContent = text;
+    reward.style.color = color;
+    this.uiManager.getOverlay().appendChild(reward);
+
+    // Extra big particle burst for streak rewards
+    this.particleSystem.emitCombo(new THREE.Vector3(0, 0, 1), 8);
+    this.particleSystem.emitCombo(new THREE.Vector3(-2, 0, 1), 5);
+    this.particleSystem.emitCombo(new THREE.Vector3(2, 0, 1), 5);
+
+    setTimeout(() => {
+      reward.classList.add('fade-out');
+      setTimeout(() => reward.remove(), 500);
+    }, 2500);
+  }
+
+  // Spawn a bonus powerup gem as streak reward
+  private spawnBonusPowerup(powerupType: PowerupType): void {
+    // Find a random non-powerup gem on the board and convert it
+    const candidates: { row: number; col: number; gem: any }[] = [];
+
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        const gem = this.board.getGem(row, col);
+        if (gem && gem.powerup === PowerupType.None) {
+          candidates.push({ row, col, gem });
+        }
+      }
+    }
+
+    if (candidates.length > 0) {
+      const chosen = candidates[Math.floor(Math.random() * candidates.length)];
+
+      // Remove old gem and create new powerup gem
+      this.gemMeshManager.removeGem(chosen.gem.id);
+      this.board.removeGem(chosen.row, chosen.col);
+
+      const newGem = createGem(chosen.gem.type, { row: chosen.row, col: chosen.col }, powerupType);
+      this.board.setGem(chosen.row, chosen.col, newGem);
+      this.gemMeshManager.addGem(newGem);
+
+      // Flash effect at that position
+      const pos = this.gemMeshManager.getFactory().boardToWorld(chosen.row, chosen.col);
+      this.particleSystem.emitCollect(pos, new THREE.Color(0xffffff));
+    }
+  }
+
   // Reset streak on failed move
   private resetStreak(): void {
     this.moveStreak = 0;
@@ -813,9 +924,11 @@ export class GameScene implements Scene {
     this.dragon.flyAcrossScreen(() => {
       this.hideDragonWarning();
       // Actually steal gems AFTER animation completes (so player sees count go down)
-      const stealResult = this.dragonEvent.stealFromCollection();
+      // Marina's Ocean Shield ability: flat reduction in gems stolen
+      const dragonResist = this.princess.ability.type === 'dragon_resist' ? this.princess.ability.value : 0;
+      const stealResult = this.dragonEvent.stealFromCollection(dragonResist);
       if (stealResult.totalStolen > 0) {
-        this.showStolenMessage(stealResult.totalStolen);
+        this.showStolenMessage(stealResult.totalStolen, dragonResist > 0);
       }
     });
   }
@@ -834,10 +947,14 @@ export class GameScene implements Scene {
     }
   }
 
-  private showStolenMessage(totalStolen: number): void {
+  private showStolenMessage(totalStolen: number, wasResisted: boolean = false): void {
     const message = document.createElement('div');
     message.id = 'dragon-stolen-message';
-    message.innerHTML = `🐉 Dragon stole <strong>${totalStolen}</strong> gem${totalStolen !== 1 ? 's' : ''}!`;
+    if (wasResisted) {
+      message.innerHTML = `🐉 Dragon stole <strong>${totalStolen}</strong> gem${totalStolen !== 1 ? 's' : ''}!<br><span style="color: #87ceeb; font-size: 0.9rem;">🛡️ Ocean Shield reduced damage!</span>`;
+    } else {
+      message.innerHTML = `🐉 Dragon stole <strong>${totalStolen}</strong> gem${totalStolen !== 1 ? 's' : ''}!`;
+    }
     this.uiManager.getOverlay().appendChild(message);
 
     setTimeout(() => {
@@ -857,16 +974,78 @@ export class GameScene implements Scene {
   private showHint(): void {
     if (this.isProcessing) return;
 
+    // Calculate hint cost (increases with each use, max 10)
+    let hintCost = Math.min(
+      GameScene.HINT_BASE_COST + this.hintUseCount,
+      GameScene.HINT_MAX_COST
+    );
+
+    // Crystal's cost discount ability
+    if (this.princess.ability.type === 'cost_discount') {
+      hintCost = Math.max(1, Math.floor(hintCost * (1 - this.princess.ability.value / 100)));
+    }
+
+    const total = this.dragonEvent.getCollectionTotal();
+    if (total < hintCost) {
+      this.showHintMessage(`Need ${hintCost} gems for hint! (Have ${total})`, false);
+      return;
+    }
+
     const hint = this.findValidMove();
     if (hint) {
+      // Pay the cost
+      this.dragonEvent.payFairyDustCost(hintCost);
+      this.hintUseCount++;
+
+      // Show cost message
+      const discountText = this.princess.ability.type === 'cost_discount' ? ' (Frost Blessing!)' : '';
+      this.showHintMessage(`Hint cost: ${hintCost} gems${discountText}`, true);
+
       // Highlight both gems in the swap pair
       this.gemMeshManager.highlightHint(hint.pos1.row, hint.pos1.col);
       this.gemMeshManager.highlightHint(hint.pos2.row, hint.pos2.col);
 
       // Show a visual hint indicator on screen
       this.showHintArrow(hint.pos1, hint.pos2);
+
+      // Update hint button tooltip with new cost
+      this.updateHintButtonTooltip();
     } else {
       this.showNoHintMessage();
+    }
+  }
+
+  private showHintMessage(text: string, success: boolean): void {
+    const msg = document.createElement('div');
+    msg.className = 'hint-cost-message';
+    msg.textContent = text;
+    msg.style.cssText = `
+      position: fixed;
+      bottom: 80px;
+      right: 20px;
+      background: rgba(0,0,0,0.8);
+      color: ${success ? '#ffd700' : '#ff6666'};
+      padding: 8px 15px;
+      border-radius: 8px;
+      font-family: 'Quicksand', sans-serif;
+      font-size: 0.9rem;
+      z-index: 100;
+      animation: fadeInOut 2s ease-in-out forwards;
+    `;
+    this.uiManager.getOverlay().appendChild(msg);
+    setTimeout(() => msg.remove(), 2000);
+  }
+
+  private updateHintButtonTooltip(): void {
+    if (this.hintButton) {
+      let nextCost = Math.min(
+        GameScene.HINT_BASE_COST + this.hintUseCount,
+        GameScene.HINT_MAX_COST
+      );
+      if (this.princess.ability.type === 'cost_discount') {
+        nextCost = Math.max(1, Math.floor(nextCost * (1 - this.princess.ability.value / 100)));
+      }
+      this.hintButton.setAttribute('data-tooltip', `Hint (costs ${nextCost} gems)`);
     }
   }
 
@@ -979,61 +1158,225 @@ export class GameScene implements Scene {
     this.princessMini.style.background = `linear-gradient(180deg, #${secondaryColor} 0%, #${primaryColor} 100%)`;
 
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('viewBox', '0 0 70 85');
+    svg.setAttribute('viewBox', '0 0 70 90');
     svg.setAttribute('width', '70');
-    svg.setAttribute('height', '85');
+    svg.setAttribute('height', '90');
 
+    // Beautiful flowing hair with waves
+    const hairBack = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    hairBack.setAttribute('d', 'M10 35 Q8 50 12 70 Q15 85 20 90 L50 90 Q55 85 58 70 Q62 50 60 35 Q58 20 35 18 Q12 20 10 35');
+    hairBack.setAttribute('fill', `#${accentColor}`);
+    svg.appendChild(hairBack);
+
+    // Hair highlights for shine
+    const hairShine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    hairShine.setAttribute('d', 'M18 30 Q20 45 18 60');
+    hairShine.setAttribute('stroke', 'rgba(255,255,255,0.3)');
+    hairShine.setAttribute('stroke-width', '3');
+    hairShine.setAttribute('fill', 'none');
+    hairShine.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(hairShine);
+
+    // Soft face shape
     const face = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
     face.setAttribute('cx', '35');
     face.setAttribute('cy', '45');
-    face.setAttribute('rx', '18');
-    face.setAttribute('ry', '22');
-    face.setAttribute('fill', '#ffe4c4');
+    face.setAttribute('rx', '16');
+    face.setAttribute('ry', '20');
+    face.setAttribute('fill', '#ffecd2');
     svg.appendChild(face);
 
-    const hair = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
-    hair.setAttribute('cx', '35');
-    hair.setAttribute('cy', '48');
-    hair.setAttribute('rx', '24');
-    hair.setAttribute('ry', '32');
-    hair.setAttribute('fill', `#${accentColor}`);
-    svg.insertBefore(hair, face);
+    // Rosy cheeks
+    const cheekL = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+    cheekL.setAttribute('cx', '24');
+    cheekL.setAttribute('cy', '50');
+    cheekL.setAttribute('rx', '5');
+    cheekL.setAttribute('ry', '3');
+    cheekL.setAttribute('fill', '#ffb6c1');
+    cheekL.setAttribute('opacity', '0.5');
+    svg.appendChild(cheekL);
 
-    const crown = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    crown.setAttribute('d', 'M20 22 L25 12 L30 18 L35 8 L40 18 L45 12 L50 22 Z');
-    crown.setAttribute('fill', '#ffd700');
-    svg.appendChild(crown);
+    const cheekR = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+    cheekR.setAttribute('cx', '46');
+    cheekR.setAttribute('cy', '50');
+    cheekR.setAttribute('rx', '5');
+    cheekR.setAttribute('ry', '3');
+    cheekR.setAttribute('fill', '#ffb6c1');
+    cheekR.setAttribute('opacity', '0.5');
+    svg.appendChild(cheekR);
 
+    // Big sparkling eyes - white base
+    const eyeWhiteL = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+    eyeWhiteL.setAttribute('cx', '28');
+    eyeWhiteL.setAttribute('cy', '42');
+    eyeWhiteL.setAttribute('rx', '6');
+    eyeWhiteL.setAttribute('ry', '7');
+    eyeWhiteL.setAttribute('fill', 'white');
+    svg.appendChild(eyeWhiteL);
+
+    const eyeWhiteR = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+    eyeWhiteR.setAttribute('cx', '42');
+    eyeWhiteR.setAttribute('cy', '42');
+    eyeWhiteR.setAttribute('rx', '6');
+    eyeWhiteR.setAttribute('ry', '7');
+    eyeWhiteR.setAttribute('fill', 'white');
+    svg.appendChild(eyeWhiteR);
+
+    // Colored iris
     const eyeL = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
-    eyeL.setAttribute('cx', '28');
-    eyeL.setAttribute('cy', '42');
+    eyeL.setAttribute('cx', '29');
+    eyeL.setAttribute('cy', '43');
     eyeL.setAttribute('rx', '4');
     eyeL.setAttribute('ry', '5');
     eyeL.setAttribute('fill', `#${primaryColor}`);
     svg.appendChild(eyeL);
 
     const eyeR = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
-    eyeR.setAttribute('cx', '42');
-    eyeR.setAttribute('cy', '42');
+    eyeR.setAttribute('cx', '43');
+    eyeR.setAttribute('cy', '43');
     eyeR.setAttribute('rx', '4');
     eyeR.setAttribute('ry', '5');
     eyeR.setAttribute('fill', `#${primaryColor}`);
     svg.appendChild(eyeR);
 
+    // Pupils
+    const pupilL = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    pupilL.setAttribute('cx', '30');
+    pupilL.setAttribute('cy', '43');
+    pupilL.setAttribute('r', '2');
+    pupilL.setAttribute('fill', '#222');
+    svg.appendChild(pupilL);
+
+    const pupilR = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    pupilR.setAttribute('cx', '44');
+    pupilR.setAttribute('cy', '43');
+    pupilR.setAttribute('r', '2');
+    pupilR.setAttribute('fill', '#222');
+    svg.appendChild(pupilR);
+
+    // Eye sparkles
+    const sparkleL = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    sparkleL.setAttribute('cx', '31');
+    sparkleL.setAttribute('cy', '41');
+    sparkleL.setAttribute('r', '1.5');
+    sparkleL.setAttribute('fill', 'white');
+    svg.appendChild(sparkleL);
+
+    const sparkleR = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    sparkleR.setAttribute('cx', '45');
+    sparkleR.setAttribute('cy', '41');
+    sparkleR.setAttribute('r', '1.5');
+    sparkleR.setAttribute('fill', 'white');
+    svg.appendChild(sparkleR);
+
+    // Cute eyelashes
+    const lashL = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    lashL.setAttribute('d', 'M22 38 Q24 36 26 37 M24 36 Q26 33 28 35 M27 35 Q30 32 32 35');
+    lashL.setAttribute('stroke', '#333');
+    lashL.setAttribute('stroke-width', '1');
+    lashL.setAttribute('fill', 'none');
+    svg.appendChild(lashL);
+
+    const lashR = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    lashR.setAttribute('d', 'M48 38 Q46 36 44 37 M46 36 Q44 33 42 35 M43 35 Q40 32 38 35');
+    lashR.setAttribute('stroke', '#333');
+    lashR.setAttribute('stroke-width', '1');
+    lashR.setAttribute('fill', 'none');
+    svg.appendChild(lashR);
+
+    // Soft eyebrows
+    const browL = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    browL.setAttribute('d', 'M23 33 Q28 30 33 33');
+    browL.setAttribute('stroke', `#${accentColor}`);
+    browL.setAttribute('stroke-width', '1.5');
+    browL.setAttribute('fill', 'none');
+    svg.appendChild(browL);
+
+    const browR = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    browR.setAttribute('d', 'M37 33 Q42 30 47 33');
+    browR.setAttribute('stroke', `#${accentColor}`);
+    browR.setAttribute('stroke-width', '1.5');
+    browR.setAttribute('fill', 'none');
+    svg.appendChild(browR);
+
+    // Small cute nose
+    const nose = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    nose.setAttribute('d', 'M35 47 Q33 50 35 52');
+    nose.setAttribute('stroke', '#ddb8a0');
+    nose.setAttribute('stroke-width', '1.5');
+    nose.setAttribute('fill', 'none');
+    svg.appendChild(nose);
+
+    // Cute smile with lips
     const smile = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    smile.setAttribute('d', 'M28 55 Q35 62 42 55');
-    smile.setAttribute('stroke', '#c97878');
+    smile.setAttribute('d', 'M29 57 Q35 63 41 57');
+    smile.setAttribute('stroke', '#e88a8a');
     smile.setAttribute('stroke-width', '2');
-    smile.setAttribute('fill', 'none');
+    smile.setAttribute('fill', '#ffb6c1');
+    smile.setAttribute('stroke-linecap', 'round');
     svg.appendChild(smile);
 
+    // Hair front framing face
+    const hairFront = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    hairFront.setAttribute('d', 'M19 28 Q20 35 19 45 Q35 30 51 45 Q50 35 51 28 Q45 18 35 18 Q25 18 19 28');
+    hairFront.setAttribute('fill', `#${accentColor}`);
+    svg.appendChild(hairFront);
+
+    // Beautiful crown with jewels
+    const crown = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    crown.setAttribute('d', 'M22 20 L24 10 L28 16 L32 6 L35 14 L38 6 L42 16 L46 10 L48 20 Q35 22 22 20');
+    crown.setAttribute('fill', '#ffd700');
+    crown.setAttribute('stroke', '#daa520');
+    crown.setAttribute('stroke-width', '0.5');
+    svg.appendChild(crown);
+
+    // Crown jewels
+    const jewel1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    jewel1.setAttribute('cx', '35');
+    jewel1.setAttribute('cy', '12');
+    jewel1.setAttribute('r', '2.5');
+    jewel1.setAttribute('fill', `#${primaryColor}`);
+    svg.appendChild(jewel1);
+
+    const jewel2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    jewel2.setAttribute('cx', '28');
+    jewel2.setAttribute('cy', '14');
+    jewel2.setAttribute('r', '1.5');
+    jewel2.setAttribute('fill', `#${secondaryColor}`);
+    svg.appendChild(jewel2);
+
+    const jewel3 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    jewel3.setAttribute('cx', '42');
+    jewel3.setAttribute('cy', '14');
+    jewel3.setAttribute('r', '1.5');
+    jewel3.setAttribute('fill', `#${secondaryColor}`);
+    svg.appendChild(jewel3);
+
+    // Dress collar
     const dress = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    dress.setAttribute('d', 'M20 70 Q35 65 50 70 L55 90 L15 90 Z');
+    dress.setAttribute('d', 'M25 65 Q35 62 45 65 L50 90 L20 90 Z');
     dress.setAttribute('fill', `#${primaryColor}`);
     svg.appendChild(dress);
 
+    // Dress detail
+    const dressDetail = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    dressDetail.setAttribute('d', 'M30 68 Q35 72 40 68');
+    dressDetail.setAttribute('stroke', `#${secondaryColor}`);
+    dressDetail.setAttribute('stroke-width', '2');
+    dressDetail.setAttribute('fill', 'none');
+    svg.appendChild(dressDetail);
+
     this.princessMini.appendChild(svg);
     this.uiManager.getOverlay().appendChild(this.princessMini);
+
+    // Add princess ability indicator below portrait
+    const abilityIndicator = document.createElement('div');
+    abilityIndicator.id = 'princess-ability';
+    abilityIndicator.innerHTML = `
+      <span class="ability-name">${this.princess.ability.name}</span><br>
+      <span>${this.princess.ability.description}</span>
+    `;
+    this.uiManager.getOverlay().appendChild(abilityIndicator);
   }
 
   private createDragonMeter(): void {
@@ -1067,7 +1410,13 @@ export class GameScene implements Scene {
     this.hintButton.id = 'hint-button';
     this.hintButton.className = 'game-tooltip';
     this.hintButton.innerHTML = '?';
-    this.hintButton.setAttribute('data-tooltip', 'Show Hint - Highlight a valid move');
+
+    // Calculate initial hint cost
+    let initialCost = GameScene.HINT_BASE_COST;
+    if (this.princess.ability.type === 'cost_discount') {
+      initialCost = Math.max(1, Math.floor(initialCost * (1 - this.princess.ability.value / 100)));
+    }
+    this.hintButton.setAttribute('data-tooltip', `Hint (costs ${initialCost} gems)`);
 
     this.hintButton.addEventListener('click', () => {
       this.showHint();
@@ -1100,7 +1449,12 @@ export class GameScene implements Scene {
     }
 
     // Cost: 20% of collection (minimum 1 gem)
-    const cost = Math.max(1, Math.floor(total * 0.2));
+    // Crystal's Frost Blessing ability reduces cost
+    let costPercent = 0.2;
+    if (this.princess.ability.type === 'cost_discount') {
+      costPercent *= (1 - this.princess.ability.value / 100);
+    }
+    const cost = Math.max(1, Math.floor(total * costPercent));
 
     // Deduct gems from collection
     this.dragonEvent.payFairyDustCost(cost);
@@ -1110,7 +1464,8 @@ export class GameScene implements Scene {
     this.syncMeshPositions();
     this.controller.ensureValidMoves();
 
-    this.showFairyDustMessage(`✨ Fairy Dust used! (${cost} gems spent)`, true);
+    const discountText = this.princess.ability.type === 'cost_discount' ? ' (Frost Blessing!)' : '';
+    this.showFairyDustMessage(`✨ Fairy Dust used! (${cost} gems spent)${discountText}`, true);
   }
 
   private showFairyDustMessage(text: string, success: boolean): void {

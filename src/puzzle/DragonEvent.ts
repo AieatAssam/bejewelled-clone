@@ -44,18 +44,26 @@ export class DragonEvent {
     return total;
   }
 
-  stealFromCollection(): DragonStealResult {
+  stealFromCollection(resistanceFlat: number = 0): DragonStealResult {
     const stolenGems = new Map<GemType, number>();
     let totalStolen = 0;
 
-    // Calculate total to steal (capped between MIN and MAX)
+    // Check if there's anything to steal
     const collectionTotal = this.getCollectionTotal();
     if (collectionTotal === 0) {
       return { stolenGems, totalStolen: 0, percentageStolen: 0 };
     }
 
-    let targetSteal = Math.floor(collectionTotal * DragonEvent.STEAL_PERCENTAGE);
-    targetSteal = Math.max(DragonEvent.MIN_STEAL, Math.min(DragonEvent.MAX_STEAL, targetSteal));
+    // Fixed random steal amount: 2-9 gems (not proportional to collection)
+    let targetSteal = 2 + Math.floor(Math.random() * 8); // 2 to 9
+
+    // Apply flat resistance (e.g., Marina's Ocean Shield: -3 gems stolen)
+    if (resistanceFlat > 0) {
+      targetSteal = Math.max(1, targetSteal - resistanceFlat);
+    }
+
+    // Can't steal more than player has
+    targetSteal = Math.min(targetSteal, collectionTotal);
 
     // Steal from random gem types until we hit the target
     const types = Array.from(this.collection.keys()).filter(t => (this.collection.get(t) || 0) > 0);

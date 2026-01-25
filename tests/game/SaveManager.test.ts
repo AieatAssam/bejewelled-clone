@@ -97,6 +97,8 @@ describe('SaveManager', () => {
         theme: 'Dawn',
         colors: { primary: 0xff69b4, secondary: 0xffc0cb, accent: 0xffd700 },
         description: 'Test princess',
+        ability: { name: 'Radiant Cascade', description: '+1 bonus gem per cascade level', type: 'cascade_bonus', value: 1 },
+        favoriteGem: 'diamond',
       };
 
       const collection = new Map<GemType, number>();
