@@ -292,3 +292,11 @@ ctx.globalCompositeOperation = 'source-over';
 ```
   commit
 ```
+
+```
+  GPT 5.2 says: Update the Three.js lighting/materials to increase gem contrast and reduce the “uniformly lit/plastic” look: in Renderer3D, set ambientLight.intensity = 0.10 and hemisphereLight.intensity = 0.15, and lower the front fill point light in lightConfig at [0,0,10] to intensity: 0.18; in GemMeshFactory, set roughness: 0.02 for colored transmitted gems (Ruby/Sapphire/Emerald/Amethyst) while keeping Diamond at roughness: 0.0, set colored gems envMapIntensity to 1.8 and Diamond envMapIntensity to 2.2; optionally (if performance allows) add an “inner shell” to all transmitted gems by cloning the gem material with side: THREE.BackSide, multiplying its envMapIntensity by 1.5, creating a second mesh from the same geometry scaled to 0.97, and adding it to the gem’s group.
+```
+
+```
+  commit
+```

@@ -82,13 +82,13 @@ export class GemMeshFactory {
       material = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
-        roughness: 0.0,
+        roughness: 0.0, // Keep perfectly smooth for maximum sparkle
         transmission: 1.0,
         thickness: thickness,
         ior: 2.42,
         attenuationColor: new THREE.Color(0xffffff), // Pure white - no color absorption
         attenuationDistance: 1000, // Very large - effectively no absorption
-        envMapIntensity: 1.7,
+        envMapIntensity: 2.2,
         clearcoat: 1.0,
         clearcoatRoughness: 0.0,
         specularIntensity: 1.0,
@@ -123,13 +123,13 @@ export class GemMeshFactory {
       material = new THREE.MeshPhysicalMaterial({
         color: 0xff3344, // Gem's hue for base color
         metalness: 0.0,
-        roughness: 0.0,
+        roughness: 0.02, // Slight roughness for more natural look
         transmission: 1.0,
         thickness: thickness,
         ior: 1.77,
         attenuationColor: new THREE.Color(0xff1133),
         attenuationDistance: 2.5, // Increased for better light transmission
-        envMapIntensity: 2.0,
+        envMapIntensity: 1.8,
         clearcoat: 1.0,
         clearcoatRoughness: 0.0,
         specularIntensity: 1.0,
@@ -139,13 +139,13 @@ export class GemMeshFactory {
       material = new THREE.MeshPhysicalMaterial({
         color: 0x4466ee, // Gem's hue for base color
         metalness: 0.0,
-        roughness: 0.0,
+        roughness: 0.02, // Slight roughness for more natural look
         transmission: 1.0,
         thickness: thickness,
         ior: 1.77,
         attenuationColor: new THREE.Color(0x2244dd),
         attenuationDistance: 2.5, // Increased for better light transmission
-        envMapIntensity: 2.0,
+        envMapIntensity: 1.8,
         clearcoat: 1.0,
         clearcoatRoughness: 0.0,
         specularIntensity: 1.0,
@@ -155,13 +155,13 @@ export class GemMeshFactory {
       material = new THREE.MeshPhysicalMaterial({
         color: 0x22dd66, // Gem's hue for base color
         metalness: 0.0,
-        roughness: 0.0,
+        roughness: 0.02, // Slight roughness for more natural look
         transmission: 1.0,
         thickness: thickness,
         ior: 1.58,
         attenuationColor: new THREE.Color(0x00cc55),
         attenuationDistance: 3.0, // Increased for better light transmission
-        envMapIntensity: 2.0,
+        envMapIntensity: 1.8,
         clearcoat: 1.0,
         clearcoatRoughness: 0.0,
         specularIntensity: 1.0,
@@ -171,13 +171,13 @@ export class GemMeshFactory {
       material = new THREE.MeshPhysicalMaterial({
         color: 0xaa55ff, // Gem's hue for base color
         metalness: 0.0,
-        roughness: 0.0,
+        roughness: 0.02, // Slight roughness for more natural look
         transmission: 1.0,
         thickness: thickness,
         ior: 1.54,
         attenuationColor: new THREE.Color(0x9933ff),
         attenuationDistance: 2.5, // Increased for better light transmission
-        envMapIntensity: 2.0,
+        envMapIntensity: 1.8,
         clearcoat: 1.0,
         clearcoatRoughness: 0.0,
         specularIntensity: 1.0,
@@ -193,6 +193,25 @@ export class GemMeshFactory {
     }
 
     group.add(mainMesh);
+
+    // Add inner shell for transmitted gems to enhance depth and refraction
+    const isTransmittedGem = gem.type !== GemType.GoldBracelet && gem.type !== GemType.PearlEarring;
+    if (isTransmittedGem) {
+      const innerMaterial = material.clone();
+      innerMaterial.side = THREE.BackSide;
+      innerMaterial.envMapIntensity = material.envMapIntensity * 1.5;
+
+      const innerMesh = new THREE.Mesh(geometry, innerMaterial);
+      innerMesh.scale.setScalar(0.97);
+      innerMesh.name = 'gem-inner';
+
+      // Match rotation for gold bracelet (though it's excluded, keep for consistency)
+      if (gem.type === GemType.GoldBracelet) {
+        innerMesh.rotation.x = Math.PI / 2;
+      }
+
+      group.add(innerMesh);
+    }
 
     // Add highlights only for non-transmitted materials (Pearl and Gold)
     // Transmitted gems rely on environment reflections instead of fake highlights

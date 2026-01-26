@@ -43,11 +43,11 @@ export class Renderer3D {
     this.createEnvironmentMap();
 
     // Hemisphere light for soft ambient lighting (reduced for env map contrast)
-    this.hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x443366, 0.2);
+    this.hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x443366, 0.15);
     this.scene.add(this.hemisphereLight);
 
     // Ambient light for base brightness (reduced for env map contrast)
-    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.15);
+    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.10);
     this.scene.add(this.ambientLight);
 
     // Main directional light (from front)
@@ -67,7 +67,7 @@ export class Renderer3D {
   private setupPointLights(): void {
     // Reduced lighting for better env map contrast on gems
     const lightConfig = [
-      { color: 0xffffff, pos: [0, 0, 10], intensity: 0.25 },   // Front fill
+      { color: 0xffffff, pos: [0, 0, 10], intensity: 0.18 },   // Front fill
       { color: 0xffd700, pos: [6, 4, 6], intensity: 0.2 },     // Warm gold accent (top right)
       { color: 0xff69b4, pos: [-6, 4, 6], intensity: 0.15 },   // Pink accent (top left)
       { color: 0x4488ff, pos: [0, -5, 8], intensity: 0.15 },   // Cool blue from bottom
