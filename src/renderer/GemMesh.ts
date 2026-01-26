@@ -75,10 +75,10 @@ export class GemMeshFactory {
 
     // Create gem materials using transmission with attenuation for realistic colored glass
     let material: THREE.MeshPhysicalMaterial;
-    const thickness = GEM_SIZE * 1.5; // Scale thickness to gem size
+    const thickness = GEM_SIZE * 0.35; // Reduced thickness for better light transmission
 
     if (gem.type === GemType.Diamond) {
-      // Diamond - brilliant clear with sparkle
+      // Diamond - brilliant clear with no absorption (pure white attenuation)
       material = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
@@ -86,9 +86,9 @@ export class GemMeshFactory {
         transmission: 1.0,
         thickness: thickness,
         ior: 2.42,
-        attenuationColor: new THREE.Color(0xeef8ff),
-        attenuationDistance: 0.8,
-        envMapIntensity: 3.5,
+        attenuationColor: new THREE.Color(0xffffff), // Pure white - no color absorption
+        attenuationDistance: 1000, // Very large - effectively no absorption
+        envMapIntensity: 1.7,
         clearcoat: 1.0,
         clearcoatRoughness: 0.0,
         specularIntensity: 1.0,
@@ -121,15 +121,15 @@ export class GemMeshFactory {
     } else if (gem.type === GemType.Ruby) {
       // Ruby - deep red with inner fire
       material = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
+        color: 0xff3344, // Gem's hue for base color
         metalness: 0.0,
         roughness: 0.0,
         transmission: 1.0,
         thickness: thickness,
         ior: 1.77,
         attenuationColor: new THREE.Color(0xff1133),
-        attenuationDistance: 0.3,
-        envMapIntensity: 3.0,
+        attenuationDistance: 2.5, // Increased for better light transmission
+        envMapIntensity: 2.0,
         clearcoat: 1.0,
         clearcoatRoughness: 0.0,
         specularIntensity: 1.0,
@@ -137,15 +137,15 @@ export class GemMeshFactory {
     } else if (gem.type === GemType.Sapphire) {
       // Sapphire - deep royal blue
       material = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
+        color: 0x4466ee, // Gem's hue for base color
         metalness: 0.0,
         roughness: 0.0,
         transmission: 1.0,
         thickness: thickness,
         ior: 1.77,
         attenuationColor: new THREE.Color(0x2244dd),
-        attenuationDistance: 0.3,
-        envMapIntensity: 3.0,
+        attenuationDistance: 2.5, // Increased for better light transmission
+        envMapIntensity: 2.0,
         clearcoat: 1.0,
         clearcoatRoughness: 0.0,
         specularIntensity: 1.0,
@@ -153,15 +153,15 @@ export class GemMeshFactory {
     } else if (gem.type === GemType.Emerald) {
       // Emerald - rich green
       material = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
+        color: 0x22dd66, // Gem's hue for base color
         metalness: 0.0,
         roughness: 0.0,
         transmission: 1.0,
         thickness: thickness,
         ior: 1.58,
         attenuationColor: new THREE.Color(0x00cc55),
-        attenuationDistance: 0.25,
-        envMapIntensity: 3.0,
+        attenuationDistance: 3.0, // Increased for better light transmission
+        envMapIntensity: 2.0,
         clearcoat: 1.0,
         clearcoatRoughness: 0.0,
         specularIntensity: 1.0,
@@ -169,15 +169,15 @@ export class GemMeshFactory {
     } else {
       // Amethyst - royal purple
       material = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
+        color: 0xaa55ff, // Gem's hue for base color
         metalness: 0.0,
         roughness: 0.0,
         transmission: 1.0,
         thickness: thickness,
         ior: 1.54,
         attenuationColor: new THREE.Color(0x9933ff),
-        attenuationDistance: 0.3,
-        envMapIntensity: 3.0,
+        attenuationDistance: 2.5, // Increased for better light transmission
+        envMapIntensity: 2.0,
         clearcoat: 1.0,
         clearcoatRoughness: 0.0,
         specularIntensity: 1.0,
@@ -194,44 +194,9 @@ export class GemMeshFactory {
 
     group.add(mainMesh);
 
-    // Add multiple sparkle highlights for extra brilliance
-    if (gem.type !== GemType.PearlEarring && gem.type !== GemType.GoldBracelet) {
-      // Main highlight
-      const highlightGeom = new THREE.SphereGeometry(GEM_SIZE * 0.1, 8, 6);
-      const highlightMat = new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        transparent: true,
-        opacity: 0.9,
-      });
-      const highlight = new THREE.Mesh(highlightGeom, highlightMat);
-      highlight.position.set(GEM_SIZE * 0.15, GEM_SIZE * 0.25, GEM_SIZE * 0.25);
-      highlight.name = 'highlight';
-      group.add(highlight);
-
-      // Secondary smaller sparkle
-      const sparkle2Geom = new THREE.SphereGeometry(GEM_SIZE * 0.06, 6, 4);
-      const sparkle2Mat = new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        transparent: true,
-        opacity: 0.7,
-      });
-      const sparkle2 = new THREE.Mesh(sparkle2Geom, sparkle2Mat);
-      sparkle2.position.set(-GEM_SIZE * 0.1, GEM_SIZE * 0.15, GEM_SIZE * 0.2);
-      sparkle2.name = 'highlight2';
-      group.add(sparkle2);
-
-      // Tiny accent sparkle
-      const sparkle3Geom = new THREE.SphereGeometry(GEM_SIZE * 0.04, 6, 4);
-      const sparkle3Mat = new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        transparent: true,
-        opacity: 0.6,
-      });
-      const sparkle3 = new THREE.Mesh(sparkle3Geom, sparkle3Mat);
-      sparkle3.position.set(GEM_SIZE * 0.05, -GEM_SIZE * 0.1, GEM_SIZE * 0.22);
-      sparkle3.name = 'highlight3';
-      group.add(sparkle3);
-    } else if (gem.type === GemType.PearlEarring) {
+    // Add highlights only for non-transmitted materials (Pearl and Gold)
+    // Transmitted gems rely on environment reflections instead of fake highlights
+    if (gem.type === GemType.PearlEarring) {
       // Pearl gets a soft luster highlight
       const pearlHighlightGeom = new THREE.SphereGeometry(GEM_SIZE * 0.12, 8, 6);
       const pearlHighlightMat = new THREE.MeshBasicMaterial({

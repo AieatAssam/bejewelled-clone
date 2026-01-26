@@ -17,9 +17,6 @@ export class Renderer3D {
     // Create a magical gradient background
     this.scene.background = new THREE.Color(0x1a0a2e);
 
-    // Create procedural environment map for gem reflections
-    this.createEnvironmentMap();
-
     this.camera = new THREE.PerspectiveCamera(
       50,
       window.innerWidth / window.innerHeight,
@@ -42,12 +39,15 @@ export class Renderer3D {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.2; // Brighter for gem sparkle
 
-    // Hemisphere light for soft ambient lighting
-    this.hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x443366, 0.5);
+    // Create procedural environment map for gem reflections (must be after renderer init)
+    this.createEnvironmentMap();
+
+    // Hemisphere light for soft ambient lighting (reduced for env map contrast)
+    this.hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x443366, 0.2);
     this.scene.add(this.hemisphereLight);
 
-    // Ambient light for base brightness
-    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    // Ambient light for base brightness (reduced for env map contrast)
+    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.15);
     this.scene.add(this.ambientLight);
 
     // Main directional light (from front)
@@ -65,14 +65,14 @@ export class Renderer3D {
   }
 
   private setupPointLights(): void {
-    // Enhanced lighting for sparkly gem appearance
+    // Reduced lighting for better env map contrast on gems
     const lightConfig = [
-      { color: 0xffffff, pos: [0, 0, 10], intensity: 0.5 },   // Front fill - brighter
-      { color: 0xffd700, pos: [6, 4, 6], intensity: 0.4 },    // Warm gold accent (top right)
-      { color: 0xff69b4, pos: [-6, 4, 6], intensity: 0.3 },   // Pink accent (top left)
-      { color: 0x4488ff, pos: [0, -5, 8], intensity: 0.3 },   // Cool blue from bottom
-      { color: 0xffffff, pos: [4, -2, 7], intensity: 0.25 },  // Extra sparkle right
-      { color: 0xffffff, pos: [-4, -2, 7], intensity: 0.25 }, // Extra sparkle left
+      { color: 0xffffff, pos: [0, 0, 10], intensity: 0.25 },   // Front fill
+      { color: 0xffd700, pos: [6, 4, 6], intensity: 0.2 },     // Warm gold accent (top right)
+      { color: 0xff69b4, pos: [-6, 4, 6], intensity: 0.15 },   // Pink accent (top left)
+      { color: 0x4488ff, pos: [0, -5, 8], intensity: 0.15 },   // Cool blue from bottom
+      { color: 0xffffff, pos: [4, -2, 7], intensity: 0.125 },  // Extra sparkle right
+      { color: 0xffffff, pos: [-4, -2, 7], intensity: 0.125 }, // Extra sparkle left
     ];
 
     lightConfig.forEach(({ color, pos, intensity }) => {
@@ -103,27 +103,38 @@ export class Renderer3D {
     skyCanvas.height = 512;
     const ctx = skyCanvas.getContext('2d')!;
 
-    // Vibrant gradient for gem reflections
+    // Dark gradient for high-contrast gem reflections
     const gradient = ctx.createLinearGradient(0, 0, 0, 512);
-    gradient.addColorStop(0, '#ffddaa');    // Warm top (golden light)
-    gradient.addColorStop(0.2, '#ffffff');   // Bright white
-    gradient.addColorStop(0.4, '#aaddff');   // Light blue
-    gradient.addColorStop(0.6, '#ff99cc');   // Pink
-    gradient.addColorStop(0.8, '#9966ff');   // Purple
-    gradient.addColorStop(1, '#2d1b4e');     // Dark bottom
+    gradient.addColorStop(0, '#0b0616');
+    gradient.addColorStop(0.2, '#120a2a');
+    gradient.addColorStop(0.6, '#06030e');
+    gradient.addColorStop(1, '#020106');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 512, 512);
 
-    // Add bright spots for sparkle reflections
-    ctx.fillStyle = '#ffffff';
-    for (let i = 0; i < 50; i++) {
+    // Add high-contrast hotspots for sparkle reflections
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 10; i++) {
       const x = Math.random() * 512;
-      const y = Math.random() * 256; // More in upper half
-      const r = Math.random() * 8 + 2;
+      const y = Math.random() * 200;
+      const coreR = Math.random() * 2 + 1;
+      const haloR = coreR * (12 + Math.random() * 10);
+
+      const g = ctx.createRadialGradient(x, y, 0, x, y, haloR);
+      g.addColorStop(0, 'rgba(255,255,255,0.9)');
+      g.addColorStop(0.05, 'rgba(255,255,255,0.35)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g;
       ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.arc(x, y, haloR, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(255,255,255,1)';
+      ctx.beginPath();
+      ctx.arc(x, y, coreR, 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.globalCompositeOperation = 'source-over';
 
     const skyTexture = new THREE.CanvasTexture(skyCanvas);
     skyMat.map = skyTexture;
@@ -150,7 +161,7 @@ export class Renderer3D {
     });
 
     // Generate PMREM from the environment scene
-    const envMap = pmremGenerator.fromScene(envScene, 0.04).texture;
+    const envMap = pmremGenerator.fromScene(envScene, 0.1).texture;
     this.envMap = envMap;
     this.scene.environment = envMap;
 
