@@ -104,14 +104,16 @@ export class GemMeshFactory {
       const config = GEM_REFRACTION_CONFIGS[configKey];
       material = createRefractionMaterial(this.envMap, config);
     } else if (gem.type === GemType.GoldBracelet) {
-      // Gold - rich luxurious metallic (no transparency)
+      // Gold - warm rich metallic gold
       material = new THREE.MeshPhysicalMaterial({
-        color: 0xffbf00,
+        color: 0xdaa520,
         metalness: 1.0,
-        roughness: 0.2,
-        envMapIntensity: 3.0,
+        roughness: 0.25,
+        envMapIntensity: 3.5,
         clearcoat: 0.8,
         clearcoatRoughness: 0.05,
+        emissive: 0x553300,
+        emissiveIntensity: 0.15,
       });
     } else if (gem.type === GemType.PearlEarring) {
       // Pearl - lustrous iridescent
@@ -148,9 +150,9 @@ export class GemMeshFactory {
     const mainMesh = new THREE.Mesh(geometry, material);
     mainMesh.name = 'gem';
 
-    // Rotate gold bracelet to lay flat
+    // Tilt gold bracelet so the ring face is visible
     if (gem.type === GemType.GoldBracelet) {
-      mainMesh.rotation.x = Math.PI / 2;
+      mainMesh.rotation.x = Math.PI * 0.35;
     }
 
     group.add(mainMesh);
@@ -480,8 +482,12 @@ export class GemMeshManager {
       const gem = meshData.gem;
       const phase = gem.position.row * 0.4 + gem.position.col * 0.6;
 
-      // Gentle rotation
-      mesh.rotation.y = this.time * 0.5 + phase;
+      // Gentle rotation (bracelets spin faster for visible tumble)
+      if (gem.type === GemType.GoldBracelet) {
+        mesh.rotation.y = this.time * 1.8 + phase;
+      } else {
+        mesh.rotation.y = this.time * 0.5 + phase;
+      }
 
       // Subtle floating
       if (!meshData.isAnimating) {

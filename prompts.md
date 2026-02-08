@@ -261,3 +261,11 @@ when I run it, chrome locks up. looks like rendering is too intense for the brow
 ```
 gems are not rich enough in colour
 ```
+
+```
+golden rings are blocky and do not look golden. Emeralds are too light and do not look like emerald
+```
+
+```
+ make tghe bracelet more gold like in colour and make them spin across so that spin is clearly visible
+```
