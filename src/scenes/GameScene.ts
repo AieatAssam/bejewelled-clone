@@ -1408,7 +1408,7 @@ export class GameScene implements Scene {
   private createHintButton(): void {
     this.hintButton = document.createElement('button');
     this.hintButton.id = 'hint-button';
-    this.hintButton.className = 'game-tooltip';
+    this.hintButton.className = 'game-tooltip game-action-btn';
     this.hintButton.innerHTML = '?';
 
     // Calculate initial hint cost
@@ -1428,7 +1428,7 @@ export class GameScene implements Scene {
   private createShuffleButton(): void {
     this.shuffleButton = document.createElement('button');
     this.shuffleButton.id = 'shuffle-button';
-    this.shuffleButton.className = 'game-tooltip';
+    this.shuffleButton.className = 'game-tooltip game-action-btn';
     this.shuffleButton.innerHTML = '✨';
     this.shuffleButton.setAttribute('data-tooltip', 'Fairy Dust - Shuffle board (costs 20% gems)');
 
@@ -1491,24 +1491,51 @@ export class GameScene implements Scene {
       decoration.className = `corner-decoration ${corner}`;
 
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('viewBox', '0 0 60 60');
-      svg.setAttribute('width', '60');
-      svg.setAttribute('height', '60');
+      svg.setAttribute('viewBox', '0 0 80 80');
+      svg.setAttribute('width', '80');
+      svg.setAttribute('height', '80');
 
-      const swirl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      swirl.setAttribute('d', 'M5 5 Q5 30 30 30 Q30 55 55 55');
-      swirl.setAttribute('fill', 'none');
-      swirl.setAttribute('stroke', '#ffd700');
-      swirl.setAttribute('stroke-width', '3');
-      swirl.setAttribute('stroke-linecap', 'round');
-      svg.appendChild(swirl);
+      // Outer flourish
+      const flourish1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      flourish1.setAttribute('d', 'M4 4 Q4 20 12 28 Q20 36 28 36 Q36 36 40 28');
+      flourish1.setAttribute('fill', 'none');
+      flourish1.setAttribute('stroke', 'rgba(255,215,0,0.6)');
+      flourish1.setAttribute('stroke-width', '2');
+      flourish1.setAttribute('stroke-linecap', 'round');
+      svg.appendChild(flourish1);
 
-      const gem = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      gem.setAttribute('cx', '15');
-      gem.setAttribute('cy', '15');
-      gem.setAttribute('r', '6');
+      // Inner flourish
+      const flourish2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      flourish2.setAttribute('d', 'M4 4 Q20 4 28 12 Q36 20 36 28 Q36 36 28 40');
+      flourish2.setAttribute('fill', 'none');
+      flourish2.setAttribute('stroke', 'rgba(255,215,0,0.6)');
+      flourish2.setAttribute('stroke-width', '2');
+      flourish2.setAttribute('stroke-linecap', 'round');
+      svg.appendChild(flourish2);
+
+      // Spiral accent
+      const spiral = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      spiral.setAttribute('d', 'M8 8 Q8 40 40 40 Q40 72 72 72');
+      spiral.setAttribute('fill', 'none');
+      spiral.setAttribute('stroke', 'rgba(255,215,0,0.35)');
+      spiral.setAttribute('stroke-width', '1.5');
+      spiral.setAttribute('stroke-linecap', 'round');
+      svg.appendChild(spiral);
+
+      // Corner diamond gem
+      const gem = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      gem.setAttribute('d', 'M16 8 L22 16 L16 24 L10 16 Z');
       gem.setAttribute('fill', '#ff69b4');
+      gem.setAttribute('opacity', '0.8');
       svg.appendChild(gem);
+
+      // Small accent dot
+      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      dot.setAttribute('cx', '32');
+      dot.setAttribute('cy', '32');
+      dot.setAttribute('r', '2.5');
+      dot.setAttribute('fill', 'rgba(255,215,0,0.5)');
+      svg.appendChild(dot);
 
       decoration.appendChild(svg);
       this.gameDecorations!.appendChild(decoration);

@@ -228,3 +228,23 @@ GPT 5.2 says: Update the Three.js lighting/materials to increase gem contrast an
 ```
 commit
 ```
+
+It is time to work on improving the visuals of the game. To better do this, I am leveraging SOTA agentic skills. I installed vercel agent-browser and frontend-design skills to improve the visuals of the game.
+Opus 4.6 came out, so I am switching to that with extra usage (promotional $50), allowing me to iterate for longer
+
+```
+/frontend-design
+```
+
+```
+main game screen. I want it to look more engaging and appealing. Currently  it is very bare and minimalistic 
+```
+
+```
+Use agent-browser to test the game and apply best practice UI fixes, especially around scaling and making UI work on mobile devices. Also use frontend-design skill to recommend best practices
+```
+(5 our limit was reached and I am now on extra usage, burning promotional credits)
+
+```
+prefer agent-browser over playwright for browser usage. Continue verifying mobile compatibility. Princess selection screen is still not mobile friendly. Main board does not scale properly and corner controls don't work with main board either. gitignore test-*.png files and commit prior to iterating and when you accomplish something 
+```

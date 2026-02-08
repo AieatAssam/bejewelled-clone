@@ -23,8 +23,8 @@ export class Renderer3D {
       0.1,
       1000
     );
-    this.camera.position.set(0, 0, 12);
     this.camera.lookAt(0, 0, 0);
+    this.fitCameraToBoard();
 
     this.renderer = new THREE.WebGLRenderer({
       canvas,
@@ -172,11 +172,32 @@ export class Renderer3D {
     skyTexture.dispose();
   }
 
+  // Calculate camera Z so the 8x8 board fits in the viewport with padding for UI
+  private fitCameraToBoard(): void {
+    const boardWorldSize = 7 * 1.05; // (BOARD_SIZE-1) * GEM_SPACING
+    const aspect = window.innerWidth / window.innerHeight;
+    const fovRad = (this.camera.fov * Math.PI) / 180;
+
+    // Determine the required distance based on the tighter dimension
+    // Add padding: ~20% extra on each side for UI elements (portrait, purse, dragon meter)
+    const paddingH = 1.25; // horizontal padding factor
+    const paddingV = 1.3;  // vertical padding factor (more for top/bottom UI)
+
+    const distForHeight = (boardWorldSize * paddingV * 0.5) / Math.tan(fovRad * 0.5);
+    const distForWidth = (boardWorldSize * paddingH * 0.5) / (Math.tan(fovRad * 0.5) * aspect);
+
+    const cameraZ = Math.max(distForHeight, distForWidth);
+    // Clamp to reasonable range
+    this.camera.position.set(0, 0, Math.max(10, Math.min(cameraZ, 22)));
+    this.camera.lookAt(0, 0, 0);
+  }
+
   private setupResizeHandler(): void {
     window.addEventListener('resize', () => {
       this.camera.aspect = window.innerWidth / window.innerHeight;
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(window.innerWidth, window.innerHeight);
+      this.fitCameraToBoard();
       eventBus.emit('windowResize', window.innerWidth, window.innerHeight);
     });
   }

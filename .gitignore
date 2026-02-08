@@ -22,6 +22,7 @@ Thumbs.db
 # Screenshots
 Screenshot*.png
 *.screenshot.png
+test-*.png
 
 # Debug
 npm-debug.log*
