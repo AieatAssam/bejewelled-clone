@@ -29,7 +29,7 @@ export const GEM_REFRACTION_CONFIGS: Record<string, RefractionConfig> = {
   },
   Emerald: {
     ior: 1.58,
-    color: new THREE.Color(0.05, 1.0, 0.3),
+    color: new THREE.Color(0.0, 0.55, 0.18),
     fresnel: 0.5,
     aberrationStrength: 0,
   },

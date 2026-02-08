@@ -64,10 +64,8 @@ function createSharedGeometries(): void {
   amethystGeom.computeVertexNormals();
   sharedGeometries.set(GemType.Amethyst, amethystGeom);
 
-  // Gold Bracelet - Torus ring (toNonIndexed for faceted gold)
-  const braceletBase = new THREE.TorusGeometry(GEM_SIZE * 0.5, GEM_SIZE * 0.2, 8, 16);
-  const braceletGeom = braceletBase.toNonIndexed();
-  braceletGeom.computeVertexNormals();
+  // Gold Bracelet - Smooth torus ring (high segments for smooth gold look)
+  const braceletGeom = new THREE.TorusGeometry(GEM_SIZE * 0.5, GEM_SIZE * 0.2, 24, 48);
   sharedGeometries.set(GemType.GoldBracelet, braceletGeom);
 
   // Pearl Earring - Smooth sphere (keep smooth for pearl luster)
@@ -108,12 +106,12 @@ export class GemMeshFactory {
     } else if (gem.type === GemType.GoldBracelet) {
       // Gold - rich luxurious metallic (no transparency)
       material = new THREE.MeshPhysicalMaterial({
-        color: 0xffd700,
+        color: 0xffbf00,
         metalness: 1.0,
-        roughness: 0.15,
-        envMapIntensity: 2.5,
-        clearcoat: 0.5,
-        clearcoatRoughness: 0.1,
+        roughness: 0.2,
+        envMapIntensity: 3.0,
+        clearcoat: 0.8,
+        clearcoatRoughness: 0.05,
       });
     } else if (gem.type === GemType.PearlEarring) {
       // Pearl - lustrous iridescent
