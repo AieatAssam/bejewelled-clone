@@ -269,3 +269,23 @@ golden rings are blocky and do not look golden. Emeralds are too light and do no
 ```
  make tghe bracelet more gold like in colour and make them spin across so that spin is clearly visible
 ```
+
+```
+is there any chance for us to have a skip button on the introduction story? Also, search online for textures that can be applied to gems to make them more realistic without performing ray tracing and expensive refraction computations - just make the texture simulate the effect. Additionally, diamonds should have traditional diamond cut shape, right now they are too simplistic. FInally, emeralds do not look like emerald - colour is still off. Perhaps a texture map/image could help?
+```
+
+```
+Use agent-browser to inspect the appearance of the gems and see for yourself - diamonds look black and emeralds alternate between either bright green or dark green depending on lighting. Most of the gems appear plasticky and do not look like gems. Is there a texture map, open source, that can be applied to fake the appearance without internal refraction and ray tracing? Diamonds definitely look better but the rest of the gems haven't really improved much.  
+```
+
+```
+improve geometry and download matcap pngs 
+```
+
+-------------------------------
+### Rate Limit Reached (+$50 extra usage goven for free for Opus 4.6 launch)
+-------------------------------
+
+```
+gems looks too desaturated. See for yourself with agent-browser. Emerald is now tiny and shaped like a weird fruit, it does not look like a gem at all
+```

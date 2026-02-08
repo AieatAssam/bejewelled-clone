@@ -52,6 +52,16 @@ export class IntroScene implements Scene {
     promptElement.textContent = 'Click to continue...';
     this.container.appendChild(promptElement);
 
+    // Skip button - top-right corner
+    const skipButton = document.createElement('button');
+    skipButton.className = 'skip-button';
+    skipButton.textContent = 'Skip';
+    skipButton.addEventListener('click', (e) => {
+      e.stopPropagation();
+      eventBus.emit('changeState', 'play');
+    });
+    this.container.appendChild(skipButton);
+
     this.clickHandler = () => this.advanceStory();
     this.container.addEventListener('click', this.clickHandler);
 
@@ -61,7 +71,9 @@ export class IntroScene implements Scene {
   }
 
   private handleKeyDown = (e: KeyboardEvent): void => {
-    if (e.key === ' ' || e.key === 'Enter') {
+    if (e.key === 'Escape') {
+      eventBus.emit('changeState', 'play');
+    } else if (e.key === ' ' || e.key === 'Enter') {
       this.advanceStory();
     }
   };

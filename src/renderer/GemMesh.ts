@@ -2,10 +2,8 @@ import * as THREE from 'three';
 import { GemType, Gem, PowerupType } from '../puzzle/Gem';
 import { BOARD_SIZE } from '../puzzle/Board';
 import {
-  createRefractionMaterial,
-  updateRefractionUniforms,
-  disposeBVHCache,
-  GEM_REFRACTION_CONFIGS,
+  generateMatcapTexture,
+  GEM_MATCAP_CONFIGS,
 } from './ShaderEffects';
 
 const GEM_SIZE = 0.42;
@@ -15,7 +13,7 @@ const GEM_SPACING = 1.05;
 let geometriesCreated = false;
 const sharedGeometries: Map<GemType, THREE.BufferGeometry> = new Map();
 
-// Map from gem type name to refraction config key
+// Map from gem type name to matcap config key
 const GEM_TYPE_TO_CONFIG: Partial<Record<GemType, string>> = {
   [GemType.Diamond]: 'Diamond',
   [GemType.Ruby]: 'Ruby',
@@ -24,7 +22,37 @@ const GEM_TYPE_TO_CONFIG: Partial<Record<GemType, string>> = {
   [GemType.Amethyst]: 'Amethyst',
 };
 
-function isRefractionGem(type: GemType): boolean {
+// Matcap PNG paths (served from public/)
+const MATCAP_PATHS: Record<string, string> = {
+  Diamond: '/textures/matcaps/diamond.png',
+  Ruby: '/textures/matcaps/ruby.png',
+  Sapphire: '/textures/matcaps/sapphire.png',
+  Emerald: '/textures/matcaps/emerald.png',
+  Amethyst: '/textures/matcaps/amethyst.png',
+};
+
+// Cache loaded matcap textures
+const matcapTextureCache: Map<string, THREE.Texture> = new Map();
+const textureLoader = new THREE.TextureLoader();
+
+function getMatcapTexture(configKey: string): THREE.Texture {
+  let tex = matcapTextureCache.get(configKey);
+  if (!tex) {
+    const path = MATCAP_PATHS[configKey];
+    if (path) {
+      // Load PNG matcap texture
+      tex = textureLoader.load(path);
+      tex.colorSpace = THREE.SRGBColorSpace;
+    } else {
+      // Fallback to procedural generation
+      tex = generateMatcapTexture(configKey);
+    }
+    matcapTextureCache.set(configKey, tex);
+  }
+  return tex;
+}
+
+function isMatcapGem(type: GemType): boolean {
   return type in GEM_TYPE_TO_CONFIG;
 }
 
@@ -45,15 +73,37 @@ function createSharedGeometries(): void {
   sapphireGeom.computeVertexNormals();
   sharedGeometries.set(GemType.Sapphire, sapphireGeom);
 
-  // Emerald - Rectangular step cut (toNonIndexed for sharp edges)
-  const emeraldBase = new THREE.BoxGeometry(GEM_SIZE * 1.2, GEM_SIZE * 0.8, GEM_SIZE * 0.6);
+  // Emerald - Step-cut octagonal prism via LatheGeometry
+  // Octagonal cross-section with beveled top/bottom for emerald-cut look
+  const eR = GEM_SIZE * 0.55;
+  const eH = GEM_SIZE * 0.4;
+  const emeraldProfile = [
+    new THREE.Vector2(0, -eH),                // bottom center
+    new THREE.Vector2(eR * 0.5, -eH),         // bottom face inner
+    new THREE.Vector2(eR * 0.85, -eH * 0.6),  // bottom bevel
+    new THREE.Vector2(eR, -eH * 0.2),         // lower body
+    new THREE.Vector2(eR, eH * 0.2),          // upper body
+    new THREE.Vector2(eR * 0.85, eH * 0.6),   // top bevel
+    new THREE.Vector2(eR * 0.5, eH),          // top face inner
+    new THREE.Vector2(0, eH),                  // top center
+  ];
+  const emeraldBase = new THREE.LatheGeometry(emeraldProfile, 8);
   const emeraldGeom = emeraldBase.toNonIndexed();
   emeraldGeom.computeVertexNormals();
   sharedGeometries.set(GemType.Emerald, emeraldGeom);
 
-  // Diamond - Brilliant octahedron (toNonIndexed for maximum sparkle)
-  const diamondBase = new THREE.OctahedronGeometry(GEM_SIZE * 0.7, 0);
-  diamondBase.scale(1, 1.1, 1);
+  // Diamond - Brilliant-cut profile via LatheGeometry
+  // Cross-section: culet (bottom tip) -> pavilion -> girdle -> crown -> table
+  const diamondR = GEM_SIZE * 0.7;
+  const diamondProfile = [
+    new THREE.Vector2(0, -diamondR * 0.86),       // culet (bottom tip)
+    new THREE.Vector2(diamondR * 0.95, -diamondR * 0.05), // pavilion edge at girdle
+    new THREE.Vector2(diamondR, 0),                // girdle (widest point)
+    new THREE.Vector2(diamondR * 0.85, diamondR * 0.16), // crown slope
+    new THREE.Vector2(diamondR * 0.57, diamondR * 0.32), // table edge
+    new THREE.Vector2(0, diamondR * 0.32),         // table center
+  ];
+  const diamondBase = new THREE.LatheGeometry(diamondProfile, 8);
   const diamondGeom = diamondBase.toNonIndexed();
   diamondGeom.computeVertexNormals();
   sharedGeometries.set(GemType.Diamond, diamondGeom);
@@ -82,14 +132,8 @@ export interface GemMeshData {
 }
 
 export class GemMeshFactory {
-  private envMap: THREE.CubeTexture | null = null;
-
   constructor() {
     createSharedGeometries();
-  }
-
-  setEnvMap(envMap: THREE.CubeTexture): void {
-    this.envMap = envMap;
   }
 
   createMesh(gem: Gem): THREE.Group {
@@ -99,10 +143,14 @@ export class GemMeshFactory {
     let material: THREE.Material;
 
     const configKey = GEM_TYPE_TO_CONFIG[gem.type];
-    if (configKey && this.envMap) {
-      // Use lightweight cubemap-based refraction material for transparent gems
-      const config = GEM_REFRACTION_CONFIGS[configKey];
-      material = createRefractionMaterial(this.envMap, config);
+    if (configKey) {
+      // Use matcap material for gem types (1 texture lookup, no lighting needed)
+      const matcap = getMatcapTexture(configKey);
+      material = new THREE.MeshMatcapMaterial({
+        matcap,
+        flatShading: true,
+        transparent: true,
+      });
     } else if (gem.type === GemType.GoldBracelet) {
       // Gold - warm rich metallic gold
       material = new THREE.MeshPhysicalMaterial({
@@ -115,7 +163,7 @@ export class GemMeshFactory {
         emissive: 0x553300,
         emissiveIntensity: 0.15,
       });
-    } else if (gem.type === GemType.PearlEarring) {
+    } else {
       // Pearl - lustrous iridescent
       material = new THREE.MeshPhysicalMaterial({
         color: 0xfff5ee,
@@ -130,21 +178,6 @@ export class GemMeshFactory {
         iridescence: 0.5,
         iridescenceIOR: 1.3,
       });
-    } else {
-      // Fallback: if no envMap yet, use MeshPhysicalMaterial with transmission
-      const thickness = GEM_SIZE * 0.35;
-      material = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        metalness: 0.0,
-        roughness: 0.02,
-        transmission: 1.0,
-        thickness: thickness,
-        ior: 1.5,
-        envMapIntensity: 1.8,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.0,
-        specularIntensity: 1.0,
-      });
     }
 
     const mainMesh = new THREE.Mesh(geometry, material);
@@ -157,20 +190,7 @@ export class GemMeshFactory {
 
     group.add(mainMesh);
 
-    // Add inner shell only for non-refraction transmitted gems (gold, pearl already excluded)
-    // Refraction gems don't need inner shell - BVH handles internal light paths
-    if (!isRefractionGem(gem.type) && gem.type !== GemType.GoldBracelet && gem.type !== GemType.PearlEarring) {
-      const innerMaterial = (material as THREE.MeshPhysicalMaterial).clone();
-      innerMaterial.side = THREE.BackSide;
-      innerMaterial.envMapIntensity = (material as THREE.MeshPhysicalMaterial).envMapIntensity * 1.5;
-
-      const innerMesh = new THREE.Mesh(geometry, innerMaterial);
-      innerMesh.scale.setScalar(0.97);
-      innerMesh.name = 'gem-inner';
-      group.add(innerMesh);
-    }
-
-    // Add highlights only for non-refraction materials (Pearl and Gold)
+    // Add highlights only for Pearl and Gold (matcap gems have built-in highlights)
     if (gem.type === GemType.PearlEarring) {
       const pearlHighlightGeom = new THREE.SphereGeometry(GEM_SIZE * 0.12, 8, 6);
       const pearlHighlightMat = new THREE.MeshBasicMaterial({
@@ -347,7 +367,8 @@ export class GemMeshFactory {
     sharedGeometries.forEach(g => g.dispose());
     sharedGeometries.clear();
     geometriesCreated = false;
-    disposeBVHCache();
+    matcapTextureCache.forEach(t => t.dispose());
+    matcapTextureCache.clear();
   }
 }
 
@@ -358,16 +379,9 @@ export class GemMeshManager {
   private animationSpeed: number = 15;
   private time: number = 0;
 
-  constructor(scene: THREE.Scene, envMap?: THREE.CubeTexture | null) {
+  constructor(scene: THREE.Scene) {
     this.scene = scene;
     this.factory = new GemMeshFactory();
-    if (envMap) {
-      this.factory.setEnvMap(envMap);
-    }
-  }
-
-  setEnvMap(envMap: THREE.CubeTexture): void {
-    this.factory.setEnvMap(envMap);
   }
 
   addGem(gem: Gem): THREE.Group {
@@ -494,12 +508,6 @@ export class GemMeshManager {
         mesh.position.z = Math.sin(this.time * 1.5 + phase) * 0.015;
       }
 
-      // Update refraction shader uniforms (modelMatrixInverse) for refraction gems
-      const gemMesh = mesh.getObjectByName('gem') as THREE.Mesh;
-      if (gemMesh && gemMesh.material instanceof THREE.ShaderMaterial) {
-        updateRefractionUniforms(gemMesh, gemMesh.material);
-      }
-
       // Selection ring animation
       if (meshData.isSelected) {
         const ring = mesh.getObjectByName('ring') as THREE.Mesh;
@@ -612,22 +620,22 @@ export class GemMeshManager {
             (ring.material as THREE.MeshBasicMaterial).color.set(0xffd700);
           }
 
-          // For ShaderMaterial gems, we use scale only (no emissive)
-          // For MeshPhysicalMaterial gems, use emissive + scale
-          const isShader = gemMesh.material instanceof THREE.ShaderMaterial;
+          // For MeshPhysicalMaterial gems (gold, pearl), use emissive + scale
+          // For MeshMatcapMaterial gems, use scale only
+          const isPhysical = gemMesh.material instanceof THREE.MeshPhysicalMaterial;
           let originalEmissive = 0;
-          if (!isShader) {
+          if (isPhysical) {
             originalEmissive = (gemMesh.material as THREE.MeshPhysicalMaterial).emissiveIntensity;
           }
 
           const flash = (bright: boolean) => {
             if (bright) {
-              if (!isShader) {
+              if (isPhysical) {
                 (gemMesh.material as THREE.MeshPhysicalMaterial).emissiveIntensity = 1.0;
               }
               gemMesh.scale.setScalar(1.3);
             } else {
-              if (!isShader) {
+              if (isPhysical) {
                 (gemMesh.material as THREE.MeshPhysicalMaterial).emissiveIntensity = originalEmissive;
               }
               gemMesh.scale.setScalar(originalScale);
@@ -693,13 +701,9 @@ export class GemMeshManager {
             const scale = 1.3 * (1 - progress);
             gemMesh.scale.setScalar(scale);
 
-            if (gemMesh.material instanceof THREE.ShaderMaterial) {
-              // Fade via opacity uniform
-              gemMesh.material.uniforms.opacity.value = 1 - progress;
-            } else {
-              (gemMesh.material as THREE.MeshPhysicalMaterial).opacity = 1 - progress;
-              (gemMesh.material as THREE.MeshPhysicalMaterial).transparent = true;
-            }
+            // MeshMatcapMaterial and MeshPhysicalMaterial both support opacity directly
+            (gemMesh.material as THREE.Material).opacity = 1 - progress;
+            (gemMesh.material as THREE.Material).transparent = true;
           }
         }
 

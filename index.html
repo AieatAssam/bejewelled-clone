@@ -85,6 +85,7 @@
     #ui-overlay .menu-container,
     #ui-overlay .menu-button,
     #ui-overlay .intro-container,
+    #ui-overlay .skip-button,
     #ui-overlay .princess-card,
     #ui-overlay #hint-button,
     #ui-overlay #shuffle-button,
@@ -1520,6 +1521,31 @@
     @keyframes promptBlink {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.4; }
+    }
+
+    /* Skip button on intro screen */
+    .skip-button {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      padding: 8px 20px;
+      font-family: 'Quicksand', sans-serif;
+      font-size: 0.9rem;
+      color: #ffd700;
+      background: rgba(0, 0, 0, 0.5);
+      border: 2px solid rgba(255, 215, 0, 0.5);
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      letter-spacing: 1px;
+      pointer-events: auto;
+      z-index: 10;
+    }
+
+    .skip-button:hover {
+      background: rgba(255, 215, 0, 0.15);
+      border-color: #ffd700;
+      box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
     }
 
     /* Game UI base styles moved before media queries - see above */
