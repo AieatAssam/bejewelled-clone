@@ -102,9 +102,9 @@ export class GemMeshFactory {
 
     const configKey = GEM_TYPE_TO_CONFIG[gem.type];
     if (configKey && this.envMap) {
-      // Use BVH-based refraction material for transparent gems
+      // Use lightweight cubemap-based refraction material for transparent gems
       const config = GEM_REFRACTION_CONFIGS[configKey];
-      material = createRefractionMaterial(geometry, this.envMap, config);
+      material = createRefractionMaterial(this.envMap, config);
     } else if (gem.type === GemType.GoldBracelet) {
       // Gold - rich luxurious metallic (no transparency)
       material = new THREE.MeshPhysicalMaterial({

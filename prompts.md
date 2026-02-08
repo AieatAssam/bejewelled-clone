@@ -253,3 +253,7 @@ prefer agent-browser over playwright for browser usage. Continue verifying mobil
 ```
 analyse example at https://codesandbox.io/p/sandbox/diamond-refraction-zqrreo?file=%2Fsrc%2FApp.js and adapt the gem rendering to use internal refraction accordingly. Test gem rendering with agent-browser and ensure framerate remains stable. Do this in a new git branch and commit as you make progress.
 ```
+
+```
+when I run it, chrome locks up. looks like rendering is too intense for the browser when everything is not headless
+```
