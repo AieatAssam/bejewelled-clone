@@ -69,7 +69,7 @@ export class GameScene implements Scene {
 
     this.board = new Board();
     this.controller = new BoardController(this.board);
-    this.gemMeshManager = new GemMeshManager(renderer.getScene());
+    this.gemMeshManager = new GemMeshManager(renderer.getScene(), renderer.getEnvMap());
     this.particleSystem = new ParticleSystem(renderer.getScene());
     this.dragon = new DragonModel();
     this.renderer.add(this.dragon.getGroup());

@@ -239,6 +239,10 @@ export class Renderer3D {
     this.scene.background = new THREE.Color(color);
   }
 
+  getEnvMap(): THREE.Texture | null {
+    return this.envMap;
+  }
+
   dispose(): void {
     this.renderer.dispose();
     this.scene.traverse((object) => {

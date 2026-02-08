@@ -248,3 +248,7 @@ Use agent-browser to test the game and apply best practice UI fixes, especially 
 ```
 prefer agent-browser over playwright for browser usage. Continue verifying mobile compatibility. Princess selection screen is still not mobile friendly. Main board does not scale properly and corner controls don't work with main board either. gitignore test-*.png files and commit prior to iterating and when you accomplish something 
 ```
+
+```
+analyse example at https://codesandbox.io/p/sandbox/diamond-refraction-zqrreo?file=%2Fsrc%2FApp.js and adapt the gem rendering to use internal refraction accordingly. Test gem rendering with agent-browser and ensure framerate remains stable. Do this in a new git branch and commit as you make progress.
+```

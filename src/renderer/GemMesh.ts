@@ -1,6 +1,12 @@
 import * as THREE from 'three';
-import { GemType, GEM_COLORS, Gem, PowerupType } from '../puzzle/Gem';
+import { GemType, Gem, PowerupType } from '../puzzle/Gem';
 import { BOARD_SIZE } from '../puzzle/Board';
+import {
+  createRefractionMaterial,
+  updateRefractionUniforms,
+  disposeBVHCache,
+  GEM_REFRACTION_CONFIGS,
+} from './ShaderEffects';
 
 const GEM_SIZE = 0.42;
 const GEM_SPACING = 1.05;
@@ -8,6 +14,19 @@ const GEM_SPACING = 1.05;
 // Shared geometries for performance
 let geometriesCreated = false;
 const sharedGeometries: Map<GemType, THREE.BufferGeometry> = new Map();
+
+// Map from gem type name to refraction config key
+const GEM_TYPE_TO_CONFIG: Partial<Record<GemType, string>> = {
+  [GemType.Diamond]: 'Diamond',
+  [GemType.Ruby]: 'Ruby',
+  [GemType.Sapphire]: 'Sapphire',
+  [GemType.Emerald]: 'Emerald',
+  [GemType.Amethyst]: 'Amethyst',
+};
+
+function isRefractionGem(type: GemType): boolean {
+  return type in GEM_TYPE_TO_CONFIG;
+}
 
 function createSharedGeometries(): void {
   if (geometriesCreated) return;
@@ -65,34 +84,27 @@ export interface GemMeshData {
 }
 
 export class GemMeshFactory {
+  private envMap: THREE.Texture | null = null;
+
   constructor() {
     createSharedGeometries();
+  }
+
+  setEnvMap(envMap: THREE.Texture): void {
+    this.envMap = envMap;
   }
 
   createMesh(gem: Gem): THREE.Group {
     const group = new THREE.Group();
     const geometry = sharedGeometries.get(gem.type)!;
 
-    // Create gem materials using transmission with attenuation for realistic colored glass
-    let material: THREE.MeshPhysicalMaterial;
-    const thickness = GEM_SIZE * 0.35; // Reduced thickness for better light transmission
+    let material: THREE.Material;
 
-    if (gem.type === GemType.Diamond) {
-      // Diamond - brilliant clear with no absorption (pure white attenuation)
-      material = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        metalness: 0.0,
-        roughness: 0.0, // Keep perfectly smooth for maximum sparkle
-        transmission: 1.0,
-        thickness: thickness,
-        ior: 2.42,
-        attenuationColor: new THREE.Color(0xffffff), // Pure white - no color absorption
-        attenuationDistance: 1000, // Very large - effectively no absorption
-        envMapIntensity: 2.2,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.0,
-        specularIntensity: 1.0,
-      });
+    const configKey = GEM_TYPE_TO_CONFIG[gem.type];
+    if (configKey && this.envMap) {
+      // Use BVH-based refraction material for transparent gems
+      const config = GEM_REFRACTION_CONFIGS[configKey];
+      material = createRefractionMaterial(geometry, this.envMap, config);
     } else if (gem.type === GemType.GoldBracelet) {
       // Gold - rich luxurious metallic (no transparency)
       material = new THREE.MeshPhysicalMaterial({
@@ -118,65 +130,16 @@ export class GemMeshFactory {
         iridescence: 0.5,
         iridescenceIOR: 1.3,
       });
-    } else if (gem.type === GemType.Ruby) {
-      // Ruby - deep red with inner fire
-      material = new THREE.MeshPhysicalMaterial({
-        color: 0xff3344, // Gem's hue for base color
-        metalness: 0.0,
-        roughness: 0.02, // Slight roughness for more natural look
-        transmission: 1.0,
-        thickness: thickness,
-        ior: 1.77,
-        attenuationColor: new THREE.Color(0xff1133),
-        attenuationDistance: 2.5, // Increased for better light transmission
-        envMapIntensity: 1.8,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.0,
-        specularIntensity: 1.0,
-      });
-    } else if (gem.type === GemType.Sapphire) {
-      // Sapphire - deep royal blue
-      material = new THREE.MeshPhysicalMaterial({
-        color: 0x4466ee, // Gem's hue for base color
-        metalness: 0.0,
-        roughness: 0.02, // Slight roughness for more natural look
-        transmission: 1.0,
-        thickness: thickness,
-        ior: 1.77,
-        attenuationColor: new THREE.Color(0x2244dd),
-        attenuationDistance: 2.5, // Increased for better light transmission
-        envMapIntensity: 1.8,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.0,
-        specularIntensity: 1.0,
-      });
-    } else if (gem.type === GemType.Emerald) {
-      // Emerald - rich green
-      material = new THREE.MeshPhysicalMaterial({
-        color: 0x22dd66, // Gem's hue for base color
-        metalness: 0.0,
-        roughness: 0.02, // Slight roughness for more natural look
-        transmission: 1.0,
-        thickness: thickness,
-        ior: 1.58,
-        attenuationColor: new THREE.Color(0x00cc55),
-        attenuationDistance: 3.0, // Increased for better light transmission
-        envMapIntensity: 1.8,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.0,
-        specularIntensity: 1.0,
-      });
     } else {
-      // Amethyst - royal purple
+      // Fallback: if no envMap yet, use MeshPhysicalMaterial with transmission
+      const thickness = GEM_SIZE * 0.35;
       material = new THREE.MeshPhysicalMaterial({
-        color: 0xaa55ff, // Gem's hue for base color
+        color: 0xffffff,
         metalness: 0.0,
-        roughness: 0.02, // Slight roughness for more natural look
+        roughness: 0.02,
         transmission: 1.0,
         thickness: thickness,
-        ior: 1.54,
-        attenuationColor: new THREE.Color(0x9933ff),
-        attenuationDistance: 2.5, // Increased for better light transmission
+        ior: 1.5,
         envMapIntensity: 1.8,
         clearcoat: 1.0,
         clearcoatRoughness: 0.0,
@@ -194,29 +157,21 @@ export class GemMeshFactory {
 
     group.add(mainMesh);
 
-    // Add inner shell for transmitted gems to enhance depth and refraction
-    const isTransmittedGem = gem.type !== GemType.GoldBracelet && gem.type !== GemType.PearlEarring;
-    if (isTransmittedGem) {
-      const innerMaterial = material.clone();
+    // Add inner shell only for non-refraction transmitted gems (gold, pearl already excluded)
+    // Refraction gems don't need inner shell - BVH handles internal light paths
+    if (!isRefractionGem(gem.type) && gem.type !== GemType.GoldBracelet && gem.type !== GemType.PearlEarring) {
+      const innerMaterial = (material as THREE.MeshPhysicalMaterial).clone();
       innerMaterial.side = THREE.BackSide;
-      innerMaterial.envMapIntensity = material.envMapIntensity * 1.5;
+      innerMaterial.envMapIntensity = (material as THREE.MeshPhysicalMaterial).envMapIntensity * 1.5;
 
       const innerMesh = new THREE.Mesh(geometry, innerMaterial);
       innerMesh.scale.setScalar(0.97);
       innerMesh.name = 'gem-inner';
-
-      // Match rotation for gold bracelet (though it's excluded, keep for consistency)
-      if (gem.type === GemType.GoldBracelet) {
-        innerMesh.rotation.x = Math.PI / 2;
-      }
-
       group.add(innerMesh);
     }
 
-    // Add highlights only for non-transmitted materials (Pearl and Gold)
-    // Transmitted gems rely on environment reflections instead of fake highlights
+    // Add highlights only for non-refraction materials (Pearl and Gold)
     if (gem.type === GemType.PearlEarring) {
-      // Pearl gets a soft luster highlight
       const pearlHighlightGeom = new THREE.SphereGeometry(GEM_SIZE * 0.12, 8, 6);
       const pearlHighlightMat = new THREE.MeshBasicMaterial({
         color: 0xffffff,
@@ -228,7 +183,6 @@ export class GemMeshFactory {
       pearlHighlight.name = 'highlight';
       group.add(pearlHighlight);
     } else if (gem.type === GemType.GoldBracelet) {
-      // Gold gets a metallic shine highlight
       const goldHighlightGeom = new THREE.SphereGeometry(GEM_SIZE * 0.08, 8, 6);
       const goldHighlightMat = new THREE.MeshBasicMaterial({
         color: 0xffffcc,
@@ -393,6 +347,7 @@ export class GemMeshFactory {
     sharedGeometries.forEach(g => g.dispose());
     sharedGeometries.clear();
     geometriesCreated = false;
+    disposeBVHCache();
   }
 }
 
@@ -403,9 +358,16 @@ export class GemMeshManager {
   private animationSpeed: number = 15;
   private time: number = 0;
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, envMap?: THREE.Texture | null) {
     this.scene = scene;
     this.factory = new GemMeshFactory();
+    if (envMap) {
+      this.factory.setEnvMap(envMap);
+    }
+  }
+
+  setEnvMap(envMap: THREE.Texture): void {
+    this.factory.setEnvMap(envMap);
   }
 
   addGem(gem: Gem): THREE.Group {
@@ -528,6 +490,12 @@ export class GemMeshManager {
         mesh.position.z = Math.sin(this.time * 1.5 + phase) * 0.015;
       }
 
+      // Update refraction shader uniforms (modelMatrixInverse) for refraction gems
+      const gemMesh = mesh.getObjectByName('gem') as THREE.Mesh;
+      if (gemMesh && gemMesh.material instanceof THREE.ShaderMaterial) {
+        updateRefractionUniforms(gemMesh, gemMesh.material);
+      }
+
       // Selection ring animation
       if (meshData.isSelected) {
         const ring = mesh.getObjectByName('ring') as THREE.Mesh;
@@ -632,8 +600,6 @@ export class GemMeshManager {
         const ring = meshData.mesh.getObjectByName('ring') as THREE.Mesh;
 
         if (gemMesh) {
-          const material = gemMesh.material as THREE.MeshPhysicalMaterial;
-          const originalEmissive = material.emissiveIntensity;
           const originalScale = gemMesh.scale.x;
 
           // Make ring visible with golden color for hint
@@ -642,13 +608,24 @@ export class GemMeshManager {
             (ring.material as THREE.MeshBasicMaterial).color.set(0xffd700);
           }
 
-          // Flash brightly and scale up
+          // For ShaderMaterial gems, we use scale only (no emissive)
+          // For MeshPhysicalMaterial gems, use emissive + scale
+          const isShader = gemMesh.material instanceof THREE.ShaderMaterial;
+          let originalEmissive = 0;
+          if (!isShader) {
+            originalEmissive = (gemMesh.material as THREE.MeshPhysicalMaterial).emissiveIntensity;
+          }
+
           const flash = (bright: boolean) => {
             if (bright) {
-              material.emissiveIntensity = 1.0;
+              if (!isShader) {
+                (gemMesh.material as THREE.MeshPhysicalMaterial).emissiveIntensity = 1.0;
+              }
               gemMesh.scale.setScalar(1.3);
             } else {
-              material.emissiveIntensity = originalEmissive;
+              if (!isShader) {
+                (gemMesh.material as THREE.MeshPhysicalMaterial).emissiveIntensity = originalEmissive;
+              }
               gemMesh.scale.setScalar(originalScale);
             }
           };
@@ -676,11 +653,11 @@ export class GemMeshManager {
 
       const gemMesh = meshData.mesh.getObjectByName('gem') as THREE.Mesh;
       if (gemMesh) {
-        // Make it glow brightly
-        const material = gemMesh.material as THREE.MeshPhysicalMaterial;
-        material.emissiveIntensity = 1.0;
-
-        // Scale up for emphasis
+        // For MeshPhysicalMaterial, use emissive glow
+        if (gemMesh.material instanceof THREE.MeshPhysicalMaterial) {
+          gemMesh.material.emissiveIntensity = 1.0;
+        }
+        // Scale up for emphasis (works for both material types)
         gemMesh.scale.setScalar(1.3);
       }
     }
@@ -711,8 +688,14 @@ export class GemMeshManager {
           if (gemMesh) {
             const scale = 1.3 * (1 - progress);
             gemMesh.scale.setScalar(scale);
-            (gemMesh.material as THREE.MeshPhysicalMaterial).opacity = 1 - progress;
-            (gemMesh.material as THREE.MeshPhysicalMaterial).transparent = true;
+
+            if (gemMesh.material instanceof THREE.ShaderMaterial) {
+              // Fade via opacity uniform
+              gemMesh.material.uniforms.opacity.value = 1 - progress;
+            } else {
+              (gemMesh.material as THREE.MeshPhysicalMaterial).opacity = 1 - progress;
+              (gemMesh.material as THREE.MeshPhysicalMaterial).transparent = true;
+            }
           }
         }
 
