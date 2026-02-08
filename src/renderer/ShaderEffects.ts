@@ -17,7 +17,7 @@ export interface RefractionConfig {
 // Default configs per gem type
 export const GEM_REFRACTION_CONFIGS: Record<string, RefractionConfig> = {
   Diamond: {
-    bounces: 3,
+    bounces: 2,
     ior: 2.42,
     color: new THREE.Color(1, 1, 1),
     fresnel: 1.0,
