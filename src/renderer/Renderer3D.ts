@@ -174,20 +174,21 @@ export class Renderer3D {
 
   // Calculate camera Z so the 8x8 board fits in the viewport with padding for UI
   private fitCameraToBoard(): void {
-    const boardWorldSize = 7 * 1.05; // (BOARD_SIZE-1) * GEM_SPACING
+    // Full board extent including gem radii: (BOARD_SIZE-1)*GEM_SPACING + GEM_SIZE
+    const boardWorldSize = 7 * 1.05 + 0.85; // ~8.2 units edge-to-edge
     const aspect = window.innerWidth / window.innerHeight;
     const fovRad = (this.camera.fov * Math.PI) / 180;
+    const isPortrait = aspect < 1;
 
-    // Determine the required distance based on the tighter dimension
-    // Add padding: ~20% extra on each side for UI elements (portrait, purse, dragon meter)
-    const paddingH = 1.25; // horizontal padding factor
-    const paddingV = 1.3;  // vertical padding factor (more for top/bottom UI)
+    // Padding accounts for UI elements overlaying the edges
+    // Portrait needs more horizontal padding since width is tighter
+    const paddingH = isPortrait ? 1.35 : 1.25;
+    const paddingV = isPortrait ? 1.25 : 1.3;
 
     const distForHeight = (boardWorldSize * paddingV * 0.5) / Math.tan(fovRad * 0.5);
     const distForWidth = (boardWorldSize * paddingH * 0.5) / (Math.tan(fovRad * 0.5) * aspect);
 
     const cameraZ = Math.max(distForHeight, distForWidth);
-    // Clamp to reasonable range
     this.camera.position.set(0, 0, Math.max(10, Math.min(cameraZ, 22)));
     this.camera.lookAt(0, 0, 0);
   }

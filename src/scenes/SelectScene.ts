@@ -22,17 +22,13 @@ export class SelectScene implements Scene {
 
   private createUI(): void {
     this.container = this.uiManager.createContainer();
-    this.container.style.maxWidth = '700px';
+    this.container.classList.add('select-container');
 
     const title = this.uiManager.createTitle('Choose Your Princess');
-    title.style.marginBottom = '1.5rem';
-    title.style.fontSize = '3rem';
     this.container.appendChild(title);
 
     const grid = document.createElement('div');
     grid.className = 'princess-grid';
-    grid.style.gridTemplateColumns = 'repeat(3, 1fr)';
-    grid.style.gap = '25px';
     this.container.appendChild(grid);
 
     for (const princess of PRINCESSES) {
@@ -43,7 +39,7 @@ export class SelectScene implements Scene {
     const backButton = this.uiManager.createButton('Back', () => {
       eventBus.emit('changeState', 'menu');
     });
-    backButton.style.marginTop = '25px';
+    backButton.classList.add('select-back-button');
     this.container.appendChild(backButton);
 
     this.uiManager.showElement(this.container);
@@ -53,9 +49,6 @@ export class SelectScene implements Scene {
   private createPrincessCard(princess: Princess): HTMLElement {
     const card = document.createElement('div');
     card.className = 'princess-card';
-    card.style.width = '180px';
-    card.style.height = '290px';
-    card.style.padding = '15px';
 
     const primaryColor = princess.colors.primary.toString(16).padStart(6, '0');
     const secondaryColor = princess.colors.secondary.toString(16).padStart(6, '0');
@@ -70,10 +63,6 @@ export class SelectScene implements Scene {
     const name = document.createElement('div');
     name.className = 'princess-name';
     name.textContent = princess.name;
-    name.style.fontSize = '1.4rem';
-    name.style.marginTop = '8px';
-    name.style.fontWeight = 'bold';
-    name.style.textShadow = '2px 2px 4px rgba(0,0,0,0.5)';
     card.appendChild(name);
 
     const theme = document.createElement('div');
