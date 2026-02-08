@@ -257,3 +257,7 @@ analyse example at https://codesandbox.io/p/sandbox/diamond-refraction-zqrreo?fi
 ```
 when I run it, chrome locks up. looks like rendering is too intense for the browser when everything is not headless
 ```
+
+```
+gems are not rich enough in colour
+```

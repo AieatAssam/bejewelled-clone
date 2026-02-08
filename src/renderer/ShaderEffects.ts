@@ -17,26 +17,26 @@ export const GEM_REFRACTION_CONFIGS: Record<string, RefractionConfig> = {
   },
   Ruby: {
     ior: 1.77,
-    color: new THREE.Color(1.0, 0.3, 0.3),
-    fresnel: 0.8,
+    color: new THREE.Color(1.0, 0.08, 0.12),
+    fresnel: 0.5,
     aberrationStrength: 0,
   },
   Sapphire: {
     ior: 1.77,
-    color: new THREE.Color(0.35, 0.45, 1.0),
-    fresnel: 0.8,
+    color: new THREE.Color(0.1, 0.25, 1.0),
+    fresnel: 0.5,
     aberrationStrength: 0,
   },
   Emerald: {
     ior: 1.58,
-    color: new THREE.Color(0.2, 0.9, 0.45),
-    fresnel: 0.8,
+    color: new THREE.Color(0.05, 1.0, 0.3),
+    fresnel: 0.5,
     aberrationStrength: 0,
   },
   Amethyst: {
     ior: 1.54,
-    color: new THREE.Color(0.7, 0.35, 1.0),
-    fresnel: 0.8,
+    color: new THREE.Color(0.6, 0.1, 1.0),
+    fresnel: 0.5,
     aberrationStrength: 0,
   },
 };
@@ -127,24 +127,32 @@ function createRefractionFragmentShader(useChroma: boolean): string {
         vec3 result = traceRefraction(vWorldPosition, vWorldNormal, ior);
       `}
 
-      // Apply color tint: blend absorption filter with luminance-preserving glow
+      // Rich color tinting: use luminance to drive strong gem color
       float luminance = dot(result, vec3(0.299, 0.587, 0.114));
+      // Strong color glow driven by light passing through
+      vec3 colorGlow = luminance * color * 1.5;
+      // Light absorption filter
       vec3 colorFiltered = result * color;
-      vec3 colorGlow = luminance * color * 1.2;
-      result = mix(colorFiltered, colorGlow, 0.5);
+      // Heavily favor the glow path for saturated color
+      result = mix(colorFiltered, colorGlow, 0.75);
 
-      // Fresnel reflection blend at surface
+      // Boost saturation further
+      float grey = dot(result, vec3(0.299, 0.587, 0.114));
+      result = mix(vec3(grey), result, 1.4);
+
+      // Fresnel reflection blend at surface (subtle to preserve color)
       vec3 viewDir = normalize(vWorldPosition - cameraPosition);
       float f = fresnelFunc(viewDir, vWorldNormal, fresnel * 0.04);
 
-      // Sample env for surface reflection
+      // Tinted reflection preserves gem identity at glancing angles
       vec3 reflectDir = reflect(viewDir, vWorldNormal);
       vec3 reflected = textureCube(envMap, reflectDir).rgb;
+      reflected = mix(reflected, reflected * color, 0.6);
 
       result = mix(result, reflected, f);
 
       // Boost brightness for visible gems on dark background
-      result *= 1.8;
+      result *= 2.2;
 
       gl_FragColor = vec4(result, opacity);
     }
