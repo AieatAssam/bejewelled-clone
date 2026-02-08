@@ -84,13 +84,13 @@ export interface GemMeshData {
 }
 
 export class GemMeshFactory {
-  private envMap: THREE.Texture | null = null;
+  private envMap: THREE.CubeTexture | null = null;
 
   constructor() {
     createSharedGeometries();
   }
 
-  setEnvMap(envMap: THREE.Texture): void {
+  setEnvMap(envMap: THREE.CubeTexture): void {
     this.envMap = envMap;
   }
 
@@ -358,7 +358,7 @@ export class GemMeshManager {
   private animationSpeed: number = 15;
   private time: number = 0;
 
-  constructor(scene: THREE.Scene, envMap?: THREE.Texture | null) {
+  constructor(scene: THREE.Scene, envMap?: THREE.CubeTexture | null) {
     this.scene = scene;
     this.factory = new GemMeshFactory();
     if (envMap) {
@@ -366,7 +366,7 @@ export class GemMeshManager {
     }
   }
 
-  setEnvMap(envMap: THREE.Texture): void {
+  setEnvMap(envMap: THREE.CubeTexture): void {
     this.factory.setEnvMap(envMap);
   }
 

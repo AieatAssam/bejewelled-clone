@@ -26,28 +26,28 @@ export const GEM_REFRACTION_CONFIGS: Record<string, RefractionConfig> = {
   Ruby: {
     bounces: 2,
     ior: 1.77,
-    color: new THREE.Color(0xff3344),
+    color: new THREE.Color(1.0, 0.3, 0.3),
     fresnel: 0.8,
     aberrationStrength: 0,
   },
   Sapphire: {
     bounces: 2,
     ior: 1.77,
-    color: new THREE.Color(0x4466ee),
+    color: new THREE.Color(0.35, 0.45, 1.0),
     fresnel: 0.8,
     aberrationStrength: 0,
   },
   Emerald: {
     bounces: 2,
     ior: 1.58,
-    color: new THREE.Color(0x22dd66),
+    color: new THREE.Color(0.2, 0.9, 0.45),
     fresnel: 0.8,
     aberrationStrength: 0,
   },
   Amethyst: {
     bounces: 2,
     ior: 1.54,
-    color: new THREE.Color(0xaa55ff),
+    color: new THREE.Color(0.7, 0.35, 1.0),
     fresnel: 0.8,
     aberrationStrength: 0,
   },
@@ -60,12 +60,9 @@ function getOrCreateBVHStruct(geometry: THREE.BufferGeometry): MeshBVHUniformStr
   let cached = bvhCache.get(geometry);
   if (cached) return cached;
 
-  // BVH needs indexed or non-indexed geometry
-  // Our geometries are already toNonIndexed() but MeshBVH needs index
-  // Re-index the geometry for BVH
+  // Our geometries are already toNonIndexed() but MeshBVH needs an index buffer
   let bvhGeometry = geometry;
   if (!geometry.index) {
-    // Create a simple sequential index
     const posCount = geometry.attributes.position.count;
     const indices = new Uint32Array(posCount);
     for (let i = 0; i < posCount; i++) indices[i] = i;
@@ -98,18 +95,20 @@ function createRefractionFragmentShader(bounces: number, useChroma: boolean): st
     precision highp float;
     precision highp int;
     precision highp sampler2D;
+    precision highp isampler2D;
     precision highp usampler2D;
 
     ${shaderStructs}
     ${shaderIntersectFunction}
 
-    uniform sampler2D envMap;
+    uniform samplerCube envMap;
     uniform BVH bvh;
     uniform vec3 color;
     uniform float ior;
     uniform float fresnel;
     uniform float aberrationStrength;
-    uniform mat4 modelMatrixInverse;
+    uniform mat4 gemModelMatrix;
+    uniform mat4 gemModelMatrixInverse;
     uniform float opacity;
 
     varying vec3 vWorldPosition;
@@ -124,9 +123,9 @@ function createRefractionFragmentShader(bounces: number, useChroma: boolean): st
       vec3 viewDir = normalize(entryPoint - cameraPosition);
 
       // Transform to local space for BVH traversal
-      vec3 localOrigin = (modelMatrixInverse * vec4(entryPoint, 1.0)).xyz;
-      vec3 localNormal = normalize((modelMatrixInverse * vec4(entryNormal, 0.0)).xyz);
-      vec3 localViewDir = normalize((modelMatrixInverse * vec4(viewDir, 0.0)).xyz);
+      vec3 localOrigin = (gemModelMatrixInverse * vec4(entryPoint, 1.0)).xyz;
+      vec3 localNormal = normalize((gemModelMatrixInverse * vec4(entryNormal, 0.0)).xyz);
+      vec3 localViewDir = normalize((gemModelMatrixInverse * vec4(viewDir, 0.0)).xyz);
 
       // Initial refraction (air -> gem)
       vec3 rayDir = refract(localViewDir, localNormal, 1.0 / currentIor);
@@ -157,12 +156,7 @@ function createRefractionFragmentShader(bounces: number, useChroma: boolean): st
         if (!hit) break;
 
         vec3 hitPoint = rayOrigin + rayDir * dist;
-
-        // Get proper normal at hit point using barycentric interpolation
-        vec3 hitNormal = textureSampleBarycoord(
-          bvh.position, barycoord, faceIndices.xyz
-        ).xyz;
-        hitNormal = faceNormal; // Use face normal for faceted look
+        vec3 hitNormal = faceNormal;
 
         // Ensure normal faces incoming ray
         if (dot(hitNormal, rayDir) > 0.0) hitNormal = -hitNormal;
@@ -180,16 +174,9 @@ function createRefractionFragmentShader(bounces: number, useChroma: boolean): st
         rayOrigin = hitPoint;
       }
 
-      // Transform exit ray back to world space
-      vec3 worldRayDir = normalize((modelMatrix * vec4(rayDir, 0.0)).xyz);
-
-      // Sample environment map (PMREM texture is equirectangular in a 2D sampler)
-      // Convert direction to equirectangular UV
-      float phi = atan(worldRayDir.z, worldRayDir.x);
-      float theta = asin(clamp(worldRayDir.y, -1.0, 1.0));
-      vec2 envUV = vec2(phi / (2.0 * 3.14159265) + 0.5, theta / 3.14159265 + 0.5);
-
-      return texture2D(envMap, envUV).rgb;
+      // Transform exit ray back to world space and sample cube env map
+      vec3 worldRayDir = normalize((gemModelMatrix * vec4(rayDir, 0.0)).xyz);
+      return textureCube(envMap, worldRayDir).rgb;
     }
 
     void main() {
@@ -207,8 +194,12 @@ function createRefractionFragmentShader(bounces: number, useChroma: boolean): st
         vec3 result = traceRefraction(vWorldPosition, vWorldNormal, ior);
       `}
 
-      // Apply color tint
-      result *= color;
+      // Apply color tint: mix between filtered light and additive color glow
+      // This ensures gems are identifiable even with non-white environments
+      float luminance = dot(result, vec3(0.299, 0.587, 0.114));
+      vec3 colorFiltered = result * color;           // Absorption filter (physically correct)
+      vec3 colorGlow = luminance * color * 1.2;      // Color glow preserving brightness
+      result = mix(colorFiltered, colorGlow, 0.5);   // Balanced blend
 
       // Fresnel reflection blend at surface
       vec3 viewDir = normalize(vWorldPosition - cameraPosition);
@@ -216,12 +207,12 @@ function createRefractionFragmentShader(bounces: number, useChroma: boolean): st
 
       // Sample env for reflection
       vec3 reflectDir = reflect(viewDir, vWorldNormal);
-      float phi = atan(reflectDir.z, reflectDir.x);
-      float theta = asin(clamp(reflectDir.y, -1.0, 1.0));
-      vec2 reflUV = vec2(phi / (2.0 * 3.14159265) + 0.5, theta / 3.14159265 + 0.5);
-      vec3 reflected = texture2D(envMap, reflUV).rgb;
+      vec3 reflected = textureCube(envMap, reflectDir).rgb;
 
       result = mix(result, reflected, f);
+
+      // Boost overall brightness for visible gems
+      result *= 1.8;
 
       gl_FragColor = vec4(result, opacity);
     }
@@ -230,7 +221,7 @@ function createRefractionFragmentShader(bounces: number, useChroma: boolean): st
 
 export function createRefractionMaterial(
   geometry: THREE.BufferGeometry,
-  envMap: THREE.Texture,
+  envMap: THREE.CubeTexture,
   config: RefractionConfig,
 ): THREE.ShaderMaterial {
   const bvhStruct = getOrCreateBVHStruct(geometry);
@@ -244,7 +235,8 @@ export function createRefractionMaterial(
       ior: { value: config.ior },
       fresnel: { value: config.fresnel },
       aberrationStrength: { value: config.aberrationStrength },
-      modelMatrixInverse: { value: new THREE.Matrix4() },
+      gemModelMatrix: { value: new THREE.Matrix4() },
+      gemModelMatrixInverse: { value: new THREE.Matrix4() },
       opacity: { value: 1.0 },
     },
     vertexShader: refractionVertexShader,
@@ -262,7 +254,8 @@ export function updateRefractionUniforms(
   material: THREE.ShaderMaterial,
 ): void {
   mesh.updateWorldMatrix(true, false);
-  material.uniforms.modelMatrixInverse.value.copy(mesh.matrixWorld).invert();
+  material.uniforms.gemModelMatrix.value.copy(mesh.matrixWorld);
+  material.uniforms.gemModelMatrixInverse.value.copy(mesh.matrixWorld).invert();
 }
 
 export function disposeBVHCache(): void {

@@ -10,6 +10,7 @@ export class Renderer3D {
   private pointLights: THREE.PointLight[] = [];
   private hemisphereLight: THREE.HemisphereLight;
   private envMap: THREE.Texture | null = null;
+  private cubeEnvMap: THREE.CubeTexture | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene();
@@ -160,10 +161,90 @@ export class Renderer3D {
       envScene.add(light);
     });
 
-    // Generate PMREM from the environment scene
+    // Generate PMREM from the environment scene (for MeshPhysicalMaterial)
     const envMap = pmremGenerator.fromScene(envScene, 0.1).texture;
     this.envMap = envMap;
     this.scene.environment = envMap;
+
+    // Create a separate, brighter environment scene for refraction shaders
+    // The PMREM env above is dark for contrast with MeshPhysicalMaterial,
+    // but refraction shaders sample the cubemap directly and need visible light
+    const refractionEnvScene = new THREE.Scene();
+
+    const refSkyGeom = new THREE.SphereGeometry(50, 32, 32);
+    const refSkyCanvas = document.createElement('canvas');
+    refSkyCanvas.width = 512;
+    refSkyCanvas.height = 512;
+    const refCtx = refSkyCanvas.getContext('2d')!;
+
+    // Bright warm gradient - light enters gems and refracts through
+    const refGradient = refCtx.createLinearGradient(0, 0, 0, 512);
+    refGradient.addColorStop(0, '#aabbcc');   // Bright sky
+    refGradient.addColorStop(0.25, '#667788'); // Medium warm grey
+    refGradient.addColorStop(0.5, '#445566');  // Mid tone
+    refGradient.addColorStop(0.75, '#2a3344'); // Darker
+    refGradient.addColorStop(1, '#1a2233');   // Dark bottom
+    refCtx.fillStyle = refGradient;
+    refCtx.fillRect(0, 0, 512, 512);
+
+    // Add many bright hotspots for sparkle and fire
+    refCtx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 25; i++) {
+      const x = Math.random() * 512;
+      const y = Math.random() * 400;
+      const coreR = Math.random() * 3 + 2;
+      const haloR = coreR * (15 + Math.random() * 20);
+
+      const g = refCtx.createRadialGradient(x, y, 0, x, y, haloR);
+      g.addColorStop(0, 'rgba(255,255,255,1.0)');
+      g.addColorStop(0.05, 'rgba(255,255,255,0.6)');
+      g.addColorStop(0.3, 'rgba(255,240,220,0.15)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      refCtx.fillStyle = g;
+      refCtx.beginPath();
+      refCtx.arc(x, y, haloR, 0, Math.PI * 2);
+      refCtx.fill();
+    }
+    refCtx.globalCompositeOperation = 'source-over';
+
+    const refSkyTexture = new THREE.CanvasTexture(refSkyCanvas);
+    const refSkyMat = new THREE.MeshBasicMaterial({ side: THREE.BackSide, map: refSkyTexture });
+    refractionEnvScene.add(new THREE.Mesh(refSkyGeom, refSkyMat));
+
+    // Large, bright light spheres for vivid refraction
+    const refLights = [
+      { pos: [15, 15, 15], color: 0xffffff, scale: 6 },
+      { pos: [-15, 12, 8], color: 0xffeedd, scale: 5 },
+      { pos: [8, -8, 18], color: 0xddeeff, scale: 5 },
+      { pos: [-8, 15, -8], color: 0xeeffee, scale: 4 },
+      { pos: [0, 20, 0], color: 0xffffff, scale: 7 },
+      { pos: [12, 0, 12], color: 0xfff0dd, scale: 4 },
+      { pos: [-12, -5, 12], color: 0xddddff, scale: 3 },
+    ];
+
+    refLights.forEach(({ pos, color, scale }) => {
+      const geom = new THREE.SphereGeometry(1, 8, 8);
+      const mat = new THREE.MeshBasicMaterial({ color });
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.position.set(pos[0], pos[1], pos[2]);
+      mesh.scale.setScalar(scale);
+      refractionEnvScene.add(mesh);
+    });
+
+    const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(256, {
+      format: THREE.RGBAFormat,
+      generateMipmaps: true,
+      minFilter: THREE.LinearMipmapLinearFilter,
+    });
+    const cubeCamera = new THREE.CubeCamera(0.1, 100, cubeRenderTarget);
+    cubeCamera.update(this.renderer, refractionEnvScene);
+    this.cubeEnvMap = cubeRenderTarget.texture;
+
+    // Cleanup refraction env scene
+    refSkyGeom.dispose();
+    refSkyMat.dispose();
+    refSkyTexture.dispose();
+    refLights.forEach(() => {}); // geometries managed by GC
 
     // Cleanup
     pmremGenerator.dispose();
@@ -241,6 +322,10 @@ export class Renderer3D {
 
   getEnvMap(): THREE.Texture | null {
     return this.envMap;
+  }
+
+  getCubeEnvMap(): THREE.CubeTexture | null {
+    return this.cubeEnvMap;
   }
 
   dispose(): void {
