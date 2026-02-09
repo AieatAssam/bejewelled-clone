@@ -56,6 +56,7 @@ export class GameScene implements Scene {
 
   // UI elements
   private princessMini: HTMLElement | null = null;
+  private abilityIndicator: HTMLElement | null = null;
   private dragonMeter: HTMLElement | null = null;
   private dragonMeterFill: HTMLElement | null = null;
   private hintButton: HTMLElement | null = null;
@@ -1370,13 +1371,13 @@ export class GameScene implements Scene {
     this.uiManager.getOverlay().appendChild(this.princessMini);
 
     // Add princess ability indicator below portrait
-    const abilityIndicator = document.createElement('div');
-    abilityIndicator.id = 'princess-ability';
-    abilityIndicator.innerHTML = `
+    this.abilityIndicator = document.createElement('div');
+    this.abilityIndicator.id = 'princess-ability';
+    this.abilityIndicator.innerHTML = `
       <span class="ability-name">${this.princess.ability.name}</span><br>
       <span>${this.princess.ability.description}</span>
     `;
-    this.uiManager.getOverlay().appendChild(abilityIndicator);
+    this.uiManager.getOverlay().appendChild(this.abilityIndicator);
   }
 
   private createDragonMeter(): void {
@@ -1558,6 +1559,10 @@ export class GameScene implements Scene {
     if (this.princessMini) {
       this.princessMini.remove();
       this.princessMini = null;
+    }
+    if (this.abilityIndicator) {
+      this.abilityIndicator.remove();
+      this.abilityIndicator = null;
     }
     if (this.dragonMeter) {
       this.dragonMeter.remove();

@@ -309,3 +309,15 @@ Commit and add more tests to achieve 80%+ coverage
 ```
 continue
 ```
+
+```
+switch back to main branch and pull remote changes, since I merged 
+```
+
+```
+when exiting from purse back to the main screen, the princess power display remains visible
+```
+
+```
+commit
+```
