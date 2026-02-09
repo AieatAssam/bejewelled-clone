@@ -22,31 +22,13 @@ const GEM_TYPE_TO_CONFIG: Partial<Record<GemType, string>> = {
   [GemType.Amethyst]: 'Amethyst',
 };
 
-// Matcap PNG paths (served from public/)
-const MATCAP_PATHS: Record<string, string> = {
-  Diamond: '/textures/matcaps/diamond.png',
-  Ruby: '/textures/matcaps/ruby.png',
-  Sapphire: '/textures/matcaps/sapphire.png',
-  Emerald: '/textures/matcaps/emerald.png',
-  Amethyst: '/textures/matcaps/amethyst.png',
-};
-
-// Cache loaded matcap textures
+// Cache procedural matcap textures
 const matcapTextureCache: Map<string, THREE.Texture> = new Map();
-const textureLoader = new THREE.TextureLoader();
 
 function getMatcapTexture(configKey: string): THREE.Texture {
   let tex = matcapTextureCache.get(configKey);
   if (!tex) {
-    const path = MATCAP_PATHS[configKey];
-    if (path) {
-      // Load PNG matcap texture
-      tex = textureLoader.load(path);
-      tex.colorSpace = THREE.SRGBColorSpace;
-    } else {
-      // Fallback to procedural generation
-      tex = generateMatcapTexture(configKey);
-    }
+    tex = generateMatcapTexture(configKey);
     matcapTextureCache.set(configKey, tex);
   }
   return tex;
@@ -73,19 +55,16 @@ function createSharedGeometries(): void {
   sapphireGeom.computeVertexNormals();
   sharedGeometries.set(GemType.Sapphire, sapphireGeom);
 
-  // Emerald - Step-cut octagonal prism via LatheGeometry
-  // Octagonal cross-section with beveled top/bottom for emerald-cut look
-  const eR = GEM_SIZE * 0.55;
-  const eH = GEM_SIZE * 0.4;
+  // Emerald - Bold octagonal step-cut gem
+  // Fewer profile points = larger flat facets, more gem-like
+  const eR = GEM_SIZE * 0.8;
   const emeraldProfile = [
-    new THREE.Vector2(0, -eH),                // bottom center
-    new THREE.Vector2(eR * 0.5, -eH),         // bottom face inner
-    new THREE.Vector2(eR * 0.85, -eH * 0.6),  // bottom bevel
-    new THREE.Vector2(eR, -eH * 0.2),         // lower body
-    new THREE.Vector2(eR, eH * 0.2),          // upper body
-    new THREE.Vector2(eR * 0.85, eH * 0.6),   // top bevel
-    new THREE.Vector2(eR * 0.5, eH),          // top face inner
-    new THREE.Vector2(0, eH),                  // top center
+    new THREE.Vector2(0, -eR * 0.7),            // bottom point (pavilion tip)
+    new THREE.Vector2(eR * 0.85, -eR * 0.08),   // pavilion → girdle
+    new THREE.Vector2(eR, 0),                    // girdle (widest)
+    new THREE.Vector2(eR * 0.7, eR * 0.28),     // crown step
+    new THREE.Vector2(eR * 0.5, eR * 0.35),     // table edge
+    new THREE.Vector2(0, eR * 0.35),            // table center
   ];
   const emeraldBase = new THREE.LatheGeometry(emeraldProfile, 8);
   const emeraldGeom = emeraldBase.toNonIndexed();

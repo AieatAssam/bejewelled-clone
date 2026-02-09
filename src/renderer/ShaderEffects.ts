@@ -13,42 +13,42 @@ export interface MatcapConfig {
   accent: string;
 }
 
-// Matcap color palettes per gem type — designed to be bright and saturated
+// Matcap color palettes per gem type — vivid and saturated for dark backgrounds
 export const GEM_MATCAP_CONFIGS: Record<string, MatcapConfig> = {
   Diamond: {
-    shadow: '#445577',
-    body: '#c8d8f0',
-    glow: '#e8f0ff',
+    shadow: '#4466aa',
+    body: '#d0e0ff',
+    glow: '#eef4ff',
     specular: '#ffffff',
-    accent: '#aaccff',
+    accent: '#99bbff',
   },
   Ruby: {
-    shadow: '#4a0010',
-    body: '#dd1133',
-    glow: '#ff4466',
-    specular: '#ffaabb',
-    accent: '#ff2244',
+    shadow: '#550015',
+    body: '#ee1144',
+    glow: '#ff5577',
+    specular: '#ffbbcc',
+    accent: '#ff3355',
   },
   Sapphire: {
-    shadow: '#0a1040',
-    body: '#2244cc',
-    glow: '#5588ff',
-    specular: '#aaccff',
-    accent: '#3366ee',
+    shadow: '#0c1455',
+    body: '#2255ee',
+    glow: '#66aaff',
+    specular: '#bbddff',
+    accent: '#4488ff',
   },
   Emerald: {
-    shadow: '#0a3318',
-    body: '#118844',
-    glow: '#33cc77',
-    specular: '#88ffcc',
-    accent: '#22aa55',
+    shadow: '#0a4420',
+    body: '#11aa55',
+    glow: '#44ee88',
+    specular: '#99ffdd',
+    accent: '#22cc66',
   },
   Amethyst: {
-    shadow: '#1a0833',
-    body: '#7722bb',
-    glow: '#aa55ee',
-    specular: '#ddbbff',
-    accent: '#9944dd',
+    shadow: '#220a44',
+    body: '#8833dd',
+    glow: '#bb66ff',
+    specular: '#eeccff',
+    accent: '#aa55ee',
   },
 };
 
