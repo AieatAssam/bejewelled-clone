@@ -293,3 +293,7 @@ gems looks too desaturated. See for yourself with agent-browser. Emerald is now 
 ```
 commit
 ```
+
+```
+Add an explanation for how streaks work into the purse UI. Add a confirmation message for exit (main menu option in purse). When you save the game, game saved message appear below the viewport and is mostly clipped and offscreen
+```
