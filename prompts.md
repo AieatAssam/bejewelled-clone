@@ -248,3 +248,64 @@ Use agent-browser to test the game and apply best practice UI fixes, especially 
 ```
 prefer agent-browser over playwright for browser usage. Continue verifying mobile compatibility. Princess selection screen is still not mobile friendly. Main board does not scale properly and corner controls don't work with main board either. gitignore test-*.png files and commit prior to iterating and when you accomplish something 
 ```
+(21 minutes, largely unsupervised other than approvals)
+
+```
+analyse example at https://codesandbox.io/p/sandbox/diamond-refraction-zqrreo?file=%2Fsrc%2FApp.js and adapt the gem rendering to use internal refraction accordingly. Test gem rendering with agent-browser and ensure framerate remains stable. Do this in a new git branch and commit as you make progress.
+```
+
+```
+when I run it, chrome locks up. looks like rendering is too intense for the browser when everything is not headless
+```
+
+```
+gems are not rich enough in colour
+```
+
+```
+golden rings are blocky and do not look golden. Emeralds are too light and do not look like emerald
+```
+
+```
+ make tghe bracelet more gold like in colour and make them spin across so that spin is clearly visible
+```
+
+```
+is there any chance for us to have a skip button on the introduction story? Also, search online for textures that can be applied to gems to make them more realistic without performing ray tracing and expensive refraction computations - just make the texture simulate the effect. Additionally, diamonds should have traditional diamond cut shape, right now they are too simplistic. FInally, emeralds do not look like emerald - colour is still off. Perhaps a texture map/image could help?
+```
+
+```
+Use agent-browser to inspect the appearance of the gems and see for yourself - diamonds look black and emeralds alternate between either bright green or dark green depending on lighting. Most of the gems appear plasticky and do not look like gems. Is there a texture map, open source, that can be applied to fake the appearance without internal refraction and ray tracing? Diamonds definitely look better but the rest of the gems haven't really improved much.  
+```
+
+```
+improve geometry and download matcap pngs 
+```
+
+-------------------------------
+### Rate Limit Reached (+$50 extra usage goven for free for Opus 4.6 launch)
+-------------------------------
+
+```
+gems looks too desaturated. See for yourself with agent-browser. Emerald is now tiny and shaped like a weird fruit, it does not look like a gem at all
+```
+
+```
+commit
+```
+
+```
+Add an explanation for how streaks work into the purse UI. Add a confirmation message for exit (main menu option in purse). When you save the game, game saved message appear below the viewport and is mostly clipped and offscreen
+```
+
+```
+Commit and add more tests to achieve 80%+ coverage
+```
+
+-------------------------------
+### Rate Limit Reached
+-------------------------------
+
+```
+continue
+```

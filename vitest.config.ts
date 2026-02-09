@@ -5,5 +5,13 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    coverage: {
+      provider: 'v8',
+      exclude: [
+        'src/renderer/**',
+        'src/scenes/GameScene.ts',
+        'src/main.ts',
+      ],
+    },
   },
 });

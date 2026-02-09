@@ -1,6 +1,10 @@
 import * as THREE from 'three';
-import { GemType, GEM_COLORS, Gem, PowerupType } from '../puzzle/Gem';
+import { GemType, Gem, PowerupType } from '../puzzle/Gem';
 import { BOARD_SIZE } from '../puzzle/Board';
+import {
+  generateMatcapTexture,
+  GEM_MATCAP_CONFIGS,
+} from './ShaderEffects';
 
 const GEM_SIZE = 0.42;
 const GEM_SPACING = 1.05;
@@ -8,6 +12,31 @@ const GEM_SPACING = 1.05;
 // Shared geometries for performance
 let geometriesCreated = false;
 const sharedGeometries: Map<GemType, THREE.BufferGeometry> = new Map();
+
+// Map from gem type name to matcap config key
+const GEM_TYPE_TO_CONFIG: Partial<Record<GemType, string>> = {
+  [GemType.Diamond]: 'Diamond',
+  [GemType.Ruby]: 'Ruby',
+  [GemType.Sapphire]: 'Sapphire',
+  [GemType.Emerald]: 'Emerald',
+  [GemType.Amethyst]: 'Amethyst',
+};
+
+// Cache procedural matcap textures
+const matcapTextureCache: Map<string, THREE.Texture> = new Map();
+
+function getMatcapTexture(configKey: string): THREE.Texture {
+  let tex = matcapTextureCache.get(configKey);
+  if (!tex) {
+    tex = generateMatcapTexture(configKey);
+    matcapTextureCache.set(configKey, tex);
+  }
+  return tex;
+}
+
+function isMatcapGem(type: GemType): boolean {
+  return type in GEM_TYPE_TO_CONFIG;
+}
 
 function createSharedGeometries(): void {
   if (geometriesCreated) return;
@@ -26,15 +55,34 @@ function createSharedGeometries(): void {
   sapphireGeom.computeVertexNormals();
   sharedGeometries.set(GemType.Sapphire, sapphireGeom);
 
-  // Emerald - Rectangular step cut (toNonIndexed for sharp edges)
-  const emeraldBase = new THREE.BoxGeometry(GEM_SIZE * 1.2, GEM_SIZE * 0.8, GEM_SIZE * 0.6);
+  // Emerald - Bold octagonal step-cut gem
+  // Fewer profile points = larger flat facets, more gem-like
+  const eR = GEM_SIZE * 0.8;
+  const emeraldProfile = [
+    new THREE.Vector2(0, -eR * 0.7),            // bottom point (pavilion tip)
+    new THREE.Vector2(eR * 0.85, -eR * 0.08),   // pavilion → girdle
+    new THREE.Vector2(eR, 0),                    // girdle (widest)
+    new THREE.Vector2(eR * 0.7, eR * 0.28),     // crown step
+    new THREE.Vector2(eR * 0.5, eR * 0.35),     // table edge
+    new THREE.Vector2(0, eR * 0.35),            // table center
+  ];
+  const emeraldBase = new THREE.LatheGeometry(emeraldProfile, 8);
   const emeraldGeom = emeraldBase.toNonIndexed();
   emeraldGeom.computeVertexNormals();
   sharedGeometries.set(GemType.Emerald, emeraldGeom);
 
-  // Diamond - Brilliant octahedron (toNonIndexed for maximum sparkle)
-  const diamondBase = new THREE.OctahedronGeometry(GEM_SIZE * 0.7, 0);
-  diamondBase.scale(1, 1.1, 1);
+  // Diamond - Brilliant-cut profile via LatheGeometry
+  // Cross-section: culet (bottom tip) -> pavilion -> girdle -> crown -> table
+  const diamondR = GEM_SIZE * 0.7;
+  const diamondProfile = [
+    new THREE.Vector2(0, -diamondR * 0.86),       // culet (bottom tip)
+    new THREE.Vector2(diamondR * 0.95, -diamondR * 0.05), // pavilion edge at girdle
+    new THREE.Vector2(diamondR, 0),                // girdle (widest point)
+    new THREE.Vector2(diamondR * 0.85, diamondR * 0.16), // crown slope
+    new THREE.Vector2(diamondR * 0.57, diamondR * 0.32), // table edge
+    new THREE.Vector2(0, diamondR * 0.32),         // table center
+  ];
+  const diamondBase = new THREE.LatheGeometry(diamondProfile, 8);
   const diamondGeom = diamondBase.toNonIndexed();
   diamondGeom.computeVertexNormals();
   sharedGeometries.set(GemType.Diamond, diamondGeom);
@@ -45,10 +93,8 @@ function createSharedGeometries(): void {
   amethystGeom.computeVertexNormals();
   sharedGeometries.set(GemType.Amethyst, amethystGeom);
 
-  // Gold Bracelet - Torus ring (toNonIndexed for faceted gold)
-  const braceletBase = new THREE.TorusGeometry(GEM_SIZE * 0.5, GEM_SIZE * 0.2, 8, 16);
-  const braceletGeom = braceletBase.toNonIndexed();
-  braceletGeom.computeVertexNormals();
+  // Gold Bracelet - Smooth torus ring (high segments for smooth gold look)
+  const braceletGeom = new THREE.TorusGeometry(GEM_SIZE * 0.5, GEM_SIZE * 0.2, 24, 48);
   sharedGeometries.set(GemType.GoldBracelet, braceletGeom);
 
   // Pearl Earring - Smooth sphere (keep smooth for pearl luster)
@@ -73,37 +119,30 @@ export class GemMeshFactory {
     const group = new THREE.Group();
     const geometry = sharedGeometries.get(gem.type)!;
 
-    // Create gem materials using transmission with attenuation for realistic colored glass
-    let material: THREE.MeshPhysicalMaterial;
-    const thickness = GEM_SIZE * 0.35; // Reduced thickness for better light transmission
+    let material: THREE.Material;
 
-    if (gem.type === GemType.Diamond) {
-      // Diamond - brilliant clear with no absorption (pure white attenuation)
-      material = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        metalness: 0.0,
-        roughness: 0.0, // Keep perfectly smooth for maximum sparkle
-        transmission: 1.0,
-        thickness: thickness,
-        ior: 2.42,
-        attenuationColor: new THREE.Color(0xffffff), // Pure white - no color absorption
-        attenuationDistance: 1000, // Very large - effectively no absorption
-        envMapIntensity: 2.2,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.0,
-        specularIntensity: 1.0,
+    const configKey = GEM_TYPE_TO_CONFIG[gem.type];
+    if (configKey) {
+      // Use matcap material for gem types (1 texture lookup, no lighting needed)
+      const matcap = getMatcapTexture(configKey);
+      material = new THREE.MeshMatcapMaterial({
+        matcap,
+        flatShading: true,
+        transparent: true,
       });
     } else if (gem.type === GemType.GoldBracelet) {
-      // Gold - rich luxurious metallic (no transparency)
+      // Gold - warm rich metallic gold
       material = new THREE.MeshPhysicalMaterial({
-        color: 0xffd700,
+        color: 0xdaa520,
         metalness: 1.0,
-        roughness: 0.15,
-        envMapIntensity: 2.5,
-        clearcoat: 0.5,
-        clearcoatRoughness: 0.1,
+        roughness: 0.25,
+        envMapIntensity: 3.5,
+        clearcoat: 0.8,
+        clearcoatRoughness: 0.05,
+        emissive: 0x553300,
+        emissiveIntensity: 0.15,
       });
-    } else if (gem.type === GemType.PearlEarring) {
+    } else {
       // Pearl - lustrous iridescent
       material = new THREE.MeshPhysicalMaterial({
         color: 0xfff5ee,
@@ -118,105 +157,20 @@ export class GemMeshFactory {
         iridescence: 0.5,
         iridescenceIOR: 1.3,
       });
-    } else if (gem.type === GemType.Ruby) {
-      // Ruby - deep red with inner fire
-      material = new THREE.MeshPhysicalMaterial({
-        color: 0xff3344, // Gem's hue for base color
-        metalness: 0.0,
-        roughness: 0.02, // Slight roughness for more natural look
-        transmission: 1.0,
-        thickness: thickness,
-        ior: 1.77,
-        attenuationColor: new THREE.Color(0xff1133),
-        attenuationDistance: 2.5, // Increased for better light transmission
-        envMapIntensity: 1.8,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.0,
-        specularIntensity: 1.0,
-      });
-    } else if (gem.type === GemType.Sapphire) {
-      // Sapphire - deep royal blue
-      material = new THREE.MeshPhysicalMaterial({
-        color: 0x4466ee, // Gem's hue for base color
-        metalness: 0.0,
-        roughness: 0.02, // Slight roughness for more natural look
-        transmission: 1.0,
-        thickness: thickness,
-        ior: 1.77,
-        attenuationColor: new THREE.Color(0x2244dd),
-        attenuationDistance: 2.5, // Increased for better light transmission
-        envMapIntensity: 1.8,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.0,
-        specularIntensity: 1.0,
-      });
-    } else if (gem.type === GemType.Emerald) {
-      // Emerald - rich green
-      material = new THREE.MeshPhysicalMaterial({
-        color: 0x22dd66, // Gem's hue for base color
-        metalness: 0.0,
-        roughness: 0.02, // Slight roughness for more natural look
-        transmission: 1.0,
-        thickness: thickness,
-        ior: 1.58,
-        attenuationColor: new THREE.Color(0x00cc55),
-        attenuationDistance: 3.0, // Increased for better light transmission
-        envMapIntensity: 1.8,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.0,
-        specularIntensity: 1.0,
-      });
-    } else {
-      // Amethyst - royal purple
-      material = new THREE.MeshPhysicalMaterial({
-        color: 0xaa55ff, // Gem's hue for base color
-        metalness: 0.0,
-        roughness: 0.02, // Slight roughness for more natural look
-        transmission: 1.0,
-        thickness: thickness,
-        ior: 1.54,
-        attenuationColor: new THREE.Color(0x9933ff),
-        attenuationDistance: 2.5, // Increased for better light transmission
-        envMapIntensity: 1.8,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.0,
-        specularIntensity: 1.0,
-      });
     }
 
     const mainMesh = new THREE.Mesh(geometry, material);
     mainMesh.name = 'gem';
 
-    // Rotate gold bracelet to lay flat
+    // Tilt gold bracelet so the ring face is visible
     if (gem.type === GemType.GoldBracelet) {
-      mainMesh.rotation.x = Math.PI / 2;
+      mainMesh.rotation.x = Math.PI * 0.35;
     }
 
     group.add(mainMesh);
 
-    // Add inner shell for transmitted gems to enhance depth and refraction
-    const isTransmittedGem = gem.type !== GemType.GoldBracelet && gem.type !== GemType.PearlEarring;
-    if (isTransmittedGem) {
-      const innerMaterial = material.clone();
-      innerMaterial.side = THREE.BackSide;
-      innerMaterial.envMapIntensity = material.envMapIntensity * 1.5;
-
-      const innerMesh = new THREE.Mesh(geometry, innerMaterial);
-      innerMesh.scale.setScalar(0.97);
-      innerMesh.name = 'gem-inner';
-
-      // Match rotation for gold bracelet (though it's excluded, keep for consistency)
-      if (gem.type === GemType.GoldBracelet) {
-        innerMesh.rotation.x = Math.PI / 2;
-      }
-
-      group.add(innerMesh);
-    }
-
-    // Add highlights only for non-transmitted materials (Pearl and Gold)
-    // Transmitted gems rely on environment reflections instead of fake highlights
+    // Add highlights only for Pearl and Gold (matcap gems have built-in highlights)
     if (gem.type === GemType.PearlEarring) {
-      // Pearl gets a soft luster highlight
       const pearlHighlightGeom = new THREE.SphereGeometry(GEM_SIZE * 0.12, 8, 6);
       const pearlHighlightMat = new THREE.MeshBasicMaterial({
         color: 0xffffff,
@@ -228,7 +182,6 @@ export class GemMeshFactory {
       pearlHighlight.name = 'highlight';
       group.add(pearlHighlight);
     } else if (gem.type === GemType.GoldBracelet) {
-      // Gold gets a metallic shine highlight
       const goldHighlightGeom = new THREE.SphereGeometry(GEM_SIZE * 0.08, 8, 6);
       const goldHighlightMat = new THREE.MeshBasicMaterial({
         color: 0xffffcc,
@@ -393,6 +346,8 @@ export class GemMeshFactory {
     sharedGeometries.forEach(g => g.dispose());
     sharedGeometries.clear();
     geometriesCreated = false;
+    matcapTextureCache.forEach(t => t.dispose());
+    matcapTextureCache.clear();
   }
 }
 
@@ -520,8 +475,12 @@ export class GemMeshManager {
       const gem = meshData.gem;
       const phase = gem.position.row * 0.4 + gem.position.col * 0.6;
 
-      // Gentle rotation
-      mesh.rotation.y = this.time * 0.5 + phase;
+      // Gentle rotation (bracelets spin faster for visible tumble)
+      if (gem.type === GemType.GoldBracelet) {
+        mesh.rotation.y = this.time * 1.8 + phase;
+      } else {
+        mesh.rotation.y = this.time * 0.5 + phase;
+      }
 
       // Subtle floating
       if (!meshData.isAnimating) {
@@ -632,8 +591,6 @@ export class GemMeshManager {
         const ring = meshData.mesh.getObjectByName('ring') as THREE.Mesh;
 
         if (gemMesh) {
-          const material = gemMesh.material as THREE.MeshPhysicalMaterial;
-          const originalEmissive = material.emissiveIntensity;
           const originalScale = gemMesh.scale.x;
 
           // Make ring visible with golden color for hint
@@ -642,13 +599,24 @@ export class GemMeshManager {
             (ring.material as THREE.MeshBasicMaterial).color.set(0xffd700);
           }
 
-          // Flash brightly and scale up
+          // For MeshPhysicalMaterial gems (gold, pearl), use emissive + scale
+          // For MeshMatcapMaterial gems, use scale only
+          const isPhysical = gemMesh.material instanceof THREE.MeshPhysicalMaterial;
+          let originalEmissive = 0;
+          if (isPhysical) {
+            originalEmissive = (gemMesh.material as THREE.MeshPhysicalMaterial).emissiveIntensity;
+          }
+
           const flash = (bright: boolean) => {
             if (bright) {
-              material.emissiveIntensity = 1.0;
+              if (isPhysical) {
+                (gemMesh.material as THREE.MeshPhysicalMaterial).emissiveIntensity = 1.0;
+              }
               gemMesh.scale.setScalar(1.3);
             } else {
-              material.emissiveIntensity = originalEmissive;
+              if (isPhysical) {
+                (gemMesh.material as THREE.MeshPhysicalMaterial).emissiveIntensity = originalEmissive;
+              }
               gemMesh.scale.setScalar(originalScale);
             }
           };
@@ -676,11 +644,11 @@ export class GemMeshManager {
 
       const gemMesh = meshData.mesh.getObjectByName('gem') as THREE.Mesh;
       if (gemMesh) {
-        // Make it glow brightly
-        const material = gemMesh.material as THREE.MeshPhysicalMaterial;
-        material.emissiveIntensity = 1.0;
-
-        // Scale up for emphasis
+        // For MeshPhysicalMaterial, use emissive glow
+        if (gemMesh.material instanceof THREE.MeshPhysicalMaterial) {
+          gemMesh.material.emissiveIntensity = 1.0;
+        }
+        // Scale up for emphasis (works for both material types)
         gemMesh.scale.setScalar(1.3);
       }
     }
@@ -711,8 +679,10 @@ export class GemMeshManager {
           if (gemMesh) {
             const scale = 1.3 * (1 - progress);
             gemMesh.scale.setScalar(scale);
-            (gemMesh.material as THREE.MeshPhysicalMaterial).opacity = 1 - progress;
-            (gemMesh.material as THREE.MeshPhysicalMaterial).transparent = true;
+
+            // MeshMatcapMaterial and MeshPhysicalMaterial both support opacity directly
+            (gemMesh.material as THREE.Material).opacity = 1 - progress;
+            (gemMesh.material as THREE.Material).transparent = true;
           }
         }
 

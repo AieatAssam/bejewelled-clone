@@ -124,36 +124,41 @@ export class PurseUI {
 
     container.appendChild(powerupInfo);
 
-    // Dragon tips section
-    const tipsSection = document.createElement('div');
-    tipsSection.style.cssText = `
+    // How Streaks Work section
+    const streakSection = document.createElement('div');
+    streakSection.style.cssText = `
       margin-top: 15px;
       padding: 12px;
-      background: rgba(50, 50, 80, 0.4);
-      border: 2px solid #6688aa;
+      background: rgba(80, 30, 10, 0.4);
+      border: 2px solid #ff6600;
       border-radius: 8px;
     `;
 
-    const tipsTitle = document.createElement('div');
-    tipsTitle.textContent = '💡 Tips';
-    tipsTitle.style.cssText = `
-      color: #88ccff;
+    const streakTitle = document.createElement('div');
+    streakTitle.textContent = '🔥 How Streaks Work';
+    streakTitle.style.cssText = `
+      color: #ff8844;
       font-family: 'Cinzel Decorative', serif;
-      font-size: 1rem;
+      font-size: 1.1rem;
       text-align: center;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     `;
-    tipsSection.appendChild(tipsTitle);
+    streakSection.appendChild(streakTitle);
 
-    const tipsList = document.createElement('div');
-    tipsList.innerHTML = `
-      <div style="color: #aaa; font-size: 0.8rem; margin-bottom: 5px;">• Making only 3-gem matches angers the dragon!</div>
-      <div style="color: #aaa; font-size: 0.8rem; margin-bottom: 5px;">• Match 4+ gems or create cascades to calm him down</div>
-      <div style="color: #aaa; font-size: 0.8rem;">• Watch the Dragon Threat meter at the bottom</div>
+    const streakInfo = document.createElement('div');
+    streakInfo.innerHTML = `
+      <div style="color: #ff6644; font-size: 0.85rem; font-weight: bold; margin-bottom: 4px;">🐉 Dragon Threat</div>
+      <div style="color: #ccc; font-size: 0.8rem; margin-bottom: 10px;">3 consecutive small matches (exactly 3 gems, no cascades) triggers a dragon attack. The dragon steals 2–9 gems from your collection!</div>
+      <div style="color: #44dd88; font-size: 0.85rem; font-weight: bold; margin-bottom: 4px;">🛡️ Calming the Dragon</div>
+      <div style="color: #ccc; font-size: 0.8rem; margin-bottom: 10px;">Making a 4+ gem match or triggering a cascade resets the threat counter.</div>
+      <div style="color: #ffdd44; font-size: 0.85rem; font-weight: bold; margin-bottom: 4px;">⚡ Streaks</div>
+      <div style="color: #ccc; font-size: 0.8rem; margin-bottom: 10px;">Consecutive 4+ matches or cascades build a streak. Milestones at 5, 10, 15, 20, and 25 award bonus Star or Rainbow gems!</div>
+      <div style="color: #ff4444; font-size: 0.85rem; font-weight: bold; margin-bottom: 4px;">⚠️ Watch Out</div>
+      <div style="color: #ccc; font-size: 0.8rem;">Failed swaps reset your streak counter back to zero.</div>
     `;
-    tipsSection.appendChild(tipsList);
+    streakSection.appendChild(streakInfo);
 
-    container.appendChild(tipsSection);
+    container.appendChild(streakSection);
 
     return container;
   }

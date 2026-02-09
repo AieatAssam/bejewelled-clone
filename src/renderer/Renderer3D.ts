@@ -160,7 +160,7 @@ export class Renderer3D {
       envScene.add(light);
     });
 
-    // Generate PMREM from the environment scene
+    // Generate PMREM from the environment scene (for MeshPhysicalMaterial)
     const envMap = pmremGenerator.fromScene(envScene, 0.1).texture;
     this.envMap = envMap;
     this.scene.environment = envMap;
@@ -237,6 +237,10 @@ export class Renderer3D {
 
   setBackgroundColor(color: number): void {
     this.scene.background = new THREE.Color(color);
+  }
+
+  getEnvMap(): THREE.Texture | null {
+    return this.envMap;
   }
 
   dispose(): void {
