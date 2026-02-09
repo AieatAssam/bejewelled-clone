@@ -297,3 +297,15 @@ commit
 ```
 Add an explanation for how streaks work into the purse UI. Add a confirmation message for exit (main menu option in purse). When you save the game, game saved message appear below the viewport and is mostly clipped and offscreen
 ```
+
+```
+Commit and add more tests to achieve 80%+ coverage
+```
+
+-------------------------------
+### Rate Limit Reached
+-------------------------------
+
+```
+continue
+```
